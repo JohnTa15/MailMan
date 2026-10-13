@@ -30,7 +30,7 @@ jobs:
         run: npm run build --workspace=client
 
       - name: Package Electron App (.exe)
-        run: npm run package --prefix electron
+        run: npm run package --workspace=electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
