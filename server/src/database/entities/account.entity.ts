@@ -12,7 +12,7 @@ export class Account {
   displayName: string;
 
   @Column({ default: 'imap' })
-  type: 'imap' | 'ews' | 'gmail' | 'outlook';
+  type: 'imap' | 'ews' | 'gmail' | 'outlook' | 'google' | 'facebook';
 
   // IMAP settings
   @Column({ nullable: true })
@@ -40,6 +40,9 @@ export class Account {
 
   @Column('text', { nullable: true })
   refreshToken: string;
+
+  @Column('text', { nullable: true })
+  oauthProviderId: string;
 
   @Column('text', { nullable: true })
   encryptedPassword: string;

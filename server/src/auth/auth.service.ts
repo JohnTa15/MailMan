@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { timingSafeEqual } from 'crypto';
 import { AccountService } from '../data/accounts/accounts.service';
 import { Account } from '../database/entities/account.entity';
-import { decryptSecret } from '../crypto/secret-box';
+import { encryptSecret, decryptSecret } from '../crypto/secret-box';
 import { discoverProvider } from '../protocols/providers';
 import { ImapSyncService } from '../protocols/imap/imap.sync.service';
 
@@ -132,6 +132,47 @@ export class AuthService {
         connected: account.connected,
       },
     };
+  }
+
+  /**
+   * Signs in or links an OAuth provider (Google/Facebook).
+   * If an account with the same email already exists, its OAuth tokens are
+   * updated. Otherwise a new account is created with the provider's tokens.
+   */
+  async oauthLogin(params: {
+    email: string;
+    displayName: string;
+    provider: 'google' | 'facebook';
+    providerId: string;
+    accessToken: string;
+    refreshToken?: string;
+  }) {
+    const { email, displayName, provider, providerId, accessToken, refreshToken } = params;
+
+    const existing = await this.accountService.findByEmail(email);
+
+    if (existing) {
+      const account = await this.accountService.update(existing.id, {
+        type: provider,
+        oauthProviderId: providerId,
+        accessToken: encryptSecret(accessToken),
+        refreshToken: refreshToken ? encryptSecret(refreshToken) : undefined,
+        connected: true,
+      });
+      return this.login(account!);
+    }
+
+    const account = await this.accountService.create({
+      email,
+      displayName: displayName || email.split('@')[0],
+      type: provider,
+      oauthProviderId: providerId,
+      accessToken: encryptSecret(accessToken),
+      refreshToken: refreshToken ? encryptSecret(refreshToken) : undefined,
+      connected: true,
+    });
+
+    return this.login(account);
   }
 
   async refreshToken(token: string) {

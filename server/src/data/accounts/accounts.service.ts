@@ -47,6 +47,10 @@ export class AccountService {
     return this.accountsRepository.findOne({ where: { email } });
   }
 
+  async findByOAuthProviderId(oauthProviderId: string): Promise<Account | null> {
+    return this.accountsRepository.findOne({ where: { oauthProviderId } });
+  }
+
   async updateConnectionStatus(id: string, connected: boolean): Promise<void> {
     await this.accountsRepository.update(id, { connected });
   }

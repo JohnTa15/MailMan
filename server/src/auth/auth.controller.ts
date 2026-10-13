@@ -4,7 +4,12 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Get,
+  UseGuards,
+  Req,
+  Res,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService, LoginDto } from './auth.service';
 
 @Controller('auth')
@@ -27,5 +32,27 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout() {
     return { success: true };
+  }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {}
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthCallback(@Req() req, @Res() res) {
+    const result = req.user;
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
+  }
+
+  @Get('facebook')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuth() {}
+
+  @Get('facebook/callback')
+  @UseGuards(AuthGuard('facebook'))
+  async facebookAuthCallback(@Req() req, @Res() res) {
+    const result = req.user;
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
   }
 }
