@@ -20,17 +20,17 @@ jobs:
           node-version: 18
           cache: 'npm'
 
-      - name: Install Root & Client & Electron Dependencies
-        run: |
-          npm install
-          npm install --prefix client
-          npm install --prefix electron
-
       - name: Build Client Web Assets
-        run: npm run build --workspace=client
+        run: |
+          cd client
+          npm install
+          npm run build
 
       - name: Package Electron App (.exe)
-        run: npm run package --workspace=electron
+        run: |
+          cd electron
+          npm install
+          npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,8 +66,6 @@ jobs:
 
       - name: Sync Capacitor Android
         run: |
-          cd android
-          npm install
           npx cap sync android
 
       - name: Build Android APK
