@@ -50,7 +50,7 @@ A beautiful, lightweight, fast, and secure open source web mail client with supp
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - npm or yarn
 
 ### Installation

@@ -3,23 +3,27 @@
   "version": "1.0.0",
   "description": "Mailman - Cross-platform email client",
   "main": "main/main.js",
+  "author": "Mailman",
   "scripts": {
     "dev": "cross-env NODE_ENV=development concurrently \"npm run dev:server\" \"wait-on http://localhost:3000 && electron .\"",
     "dev:client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=client",
-    "package": "electron-builder",
-    "postinstall": "install-app-deps"
+    "package": "electron-builder"
   },
   "build": {
     "appId": "com.mailman.app",
     "productName": "Mailman",
+    "npmRebuild": false,
     "directories": {
       "buildResources": "build",
       "output": "dist"
     },
     "files": [
       "main/**/*",
-      "../client/dist/**/*"
+      {
+        "from": "../client/dist",
+        "to": "client/dist"
+      }
     ],
     "win": {
       "target": [
@@ -27,8 +31,7 @@
           "target": "nsis",
           "arch": ["x64"]
         }
-      ],
-      "icon": "build/icon.ico"
+      ]
     },
     "linux": {
       "target": [
@@ -41,8 +44,7 @@
           "arch": ["x64"]
         }
       ],
-      "category": "Office",
-      "icon": "build/icon.png"
+      "category": "Office"
     },
     "nsis": {
       "oneClick": false,
@@ -51,8 +53,11 @@
       "createStartMenuShortcut": true
     }
   },
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
   "devDependencies": {
-    "electron": "^28.0.0",
+    "electron": "28.3.3",
     "electron-builder": "^24.9.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
