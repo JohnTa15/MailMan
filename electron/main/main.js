@@ -11,10 +11,12 @@ function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 768,
-    frame: false,
-    backgroundColor: '#ffffff',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 16, y: 16 },
+    backgroundColor: store.get('darkMode', false) ? '#0b0d17' : '#f7f7fb',
+    autoHideMenuBar: true,
+    // Native frame on Windows/Linux; inset traffic lights on macOS
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
+      : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,15 +30,6 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../client/dist/index.html'));
-  }
-
-  // Apply theme
-  const darkMode = store.get('darkMode', false);
-  if (darkMode) {
-    mainWindow.webContents.executeJavaScript(`
-      document.documentElement.classList.add('dark');
-      document.body.style.backgroundColor = '#0f172a';
-    `);
   }
 
   mainWindow.on('closed', () => {

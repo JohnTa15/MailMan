@@ -1,192 +1,127 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-export interface Account {
-  id: string;
-  email: string;
-  displayName: string;
-  avatar?: string;
-  type: 'imap' | 'ews' | 'gmail' | 'outlook';
-  connected: boolean;
-  lastSync?: Date;
-}
-
-export interface Email {
-  id: string;
-  accountId: string;
-  subject: string;
-  from: string;
-  fromName?: string;
-  to: string;
-  toName?: string;
-  date: Date;
-  preview: string;
-  body: string;
-  html?: string;
-  isRead: boolean;
-  isStarred: boolean;
-  isImportant: boolean;
-  labels: string[];
-  attachments: Attachment[];
-  folder: string;
-  threadId?: string;
-}
-
-export interface Attachment {
-  id: string;
-  name: string;
-  size: number;
-  mimeType: string;
-  url?: string;
-}
-
-export interface Folder {
-  id: string;
-  name: string;
-  count: number;
-  type: 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'draft' | 'spam' | 'custom';
-  color?: string;
-}
-
-type View = 'list' | 'thread' | 'compose' | 'settings';
+import { Account, ComposeDraft, Email, FolderId } from '../types';
 
 interface AppState {
-  // Auth
-  isAuthenticated: boolean;
-  accounts: Account[];
-  currentAccountId: string | null;
-  
-  // Email
+  // Session
+  token: string | null;
+  account: Account | null;
+  isDemo: boolean;
+
+  // Mail
   emails: Email[];
-  selectedEmail: Email | null;
-  selectedFolder: string;
+  isLoading: boolean;
+  selectedFolder: FolderId;
+  selectedEmailId: string | null;
   searchQuery: string;
-  filters: {
-    read: boolean | null;
-    starred: boolean | null;
-    important: boolean | null;
-  };
-  
+
   // UI
-  view: View;
-  sidebarOpen: boolean;
   darkMode: boolean;
-  compactMode: boolean;
-  
-  // Actions
-  setAuthenticated: (auth: boolean) => void;
-  addAccount: (account: Account) => void;
-  removeAccount: (id: string) => void;
-  setCurrentAccount: (id: string) => void;
+  mobileNavOpen: boolean;
+  compose: ComposeDraft | null;
+
+  signIn: (token: string, account: Account) => void;
+  startDemo: (account: Account, emails: Email[]) => void;
+  signOut: () => void;
   setEmails: (emails: Email[]) => void;
-  setSelectedEmail: (email: Email | null) => void;
-  setSelectedFolder: (folder: string) => void;
+  setLoading: (loading: boolean) => void;
+  patchEmail: (id: string, changes: Partial<Email>) => void;
+  removeEmail: (id: string) => void;
+  addEmail: (email: Email) => void;
+  selectFolder: (folder: FolderId) => void;
+  selectEmail: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
-  setView: (view: View) => void;
-  setSidebarOpen: (open: boolean) => void;
   setDarkMode: (dark: boolean) => void;
-  setCompactMode: (compact: boolean) => void;
-  toggleRead: (emailId: string) => void;
-  toggleStarred: (emailId: string) => void;
-  deleteEmail: (emailId: string) => void;
-  markAsImportant: (emailId: string) => void;
+  setMobileNavOpen: (open: boolean) => void;
+  openCompose: (draft?: ComposeDraft) => void;
+  closeCompose: () => void;
 }
+
+const prefersDark =
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
 
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      // Auth
-      isAuthenticated: false,
-      accounts: [],
-      currentAccountId: null,
-      
-      // Email
+      token: null,
+      account: null,
+      isDemo: false,
+
       emails: [],
-      selectedEmail: null,
+      isLoading: false,
       selectedFolder: 'inbox',
+      selectedEmailId: null,
       searchQuery: '',
-      filters: {
-        read: null,
-        starred: null,
-        important: null,
-      },
-      
-      // UI
-      view: 'list',
-      sidebarOpen: true,
-      darkMode: false,
-      compactMode: false,
-      
-      // Actions
-      setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
-      
-      addAccount: (account) =>
-        set((state) => ({
-          accounts: [...state.accounts, account],
-        })),
-      
-      removeAccount: (id) =>
-        set((state) => ({
-          accounts: state.accounts.filter((a) => a.id !== id),
-          currentAccountId:
-            state.currentAccountId === id ? null : state.currentAccountId,
-        })),
-      
-      setCurrentAccount: (id) => set({ currentAccountId: id }),
-      
+
+      darkMode: !!prefersDark,
+      mobileNavOpen: false,
+      compose: null,
+
+      signIn: (token, account) => set({ token, account, isDemo: false, emails: [] }),
+      startDemo: (account, emails) => set({ token: null, account, isDemo: true, emails }),
+      signOut: () =>
+        set({
+          token: null,
+          account: null,
+          isDemo: false,
+          emails: [],
+          selectedEmailId: null,
+          selectedFolder: 'inbox',
+          searchQuery: '',
+          compose: null,
+        }),
+
       setEmails: (emails) => set({ emails }),
-      
-      setSelectedEmail: (email) => set({ selectedEmail: email }),
-      
-      setSelectedFolder: (folder) => set({ selectedFolder: folder }),
-      
+      setLoading: (isLoading) => set({ isLoading }),
+      patchEmail: (id, changes) =>
+        set((state) => ({
+          emails: state.emails.map((e) => (e.id === id ? { ...e, ...changes } : e)),
+        })),
+      removeEmail: (id) =>
+        set((state) => ({
+          emails: state.emails.filter((e) => e.id !== id),
+          selectedEmailId: state.selectedEmailId === id ? null : state.selectedEmailId,
+        })),
+      addEmail: (email) => set((state) => ({ emails: [email, ...state.emails] })),
+
+      selectFolder: (selectedFolder) =>
+        set({ selectedFolder, selectedEmailId: null, searchQuery: '', mobileNavOpen: false }),
+      selectEmail: (selectedEmailId) => set({ selectedEmailId }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
-      
-      setView: (view) => set({ view }),
-      
-      setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
-      
       setDarkMode: (darkMode) => set({ darkMode }),
-      
-      setCompactMode: (compactMode) => set({ compactMode }),
-      
-      toggleRead: (emailId) =>
-        set((state) => ({
-          emails: state.emails.map((e) =>
-            e.id === emailId ? { ...e, isRead: !e.isRead } : e
-          ),
-        })),
-      
-      toggleStarred: (emailId) =>
-        set((state) => ({
-          emails: state.emails.map((e) =>
-            e.id === emailId ? { ...e, isStarred: !e.isStarred } : e
-          ),
-        })),
-      
-      deleteEmail: (emailId) =>
-        set((state) => ({
-          emails: state.emails.filter((e) => e.id !== emailId),
-          selectedEmail:
-            state.selectedEmail?.id === emailId ? null : state.selectedEmail,
-        })),
-      
-      markAsImportant: (emailId) =>
-        set((state) => ({
-          emails: state.emails.map((e) =>
-            e.id === emailId ? { ...e, isImportant: !e.isImportant } : e
-          ),
-        })),
+      setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
+      openCompose: (draft = {}) => set({ compose: draft }),
+      closeCompose: () => set({ compose: null }),
     }),
     {
       name: 'webmail-storage',
       partialize: (state) => ({
+        token: state.token,
+        account: state.account,
+        isDemo: state.isDemo,
         darkMode: state.darkMode,
-        compactMode: state.compactMode,
-        sidebarOpen: state.sidebarOpen,
-        accounts: state.accounts,
-        currentAccountId: state.currentAccountId,
       }),
     }
   )
 );
+
+/** Emails visible in the current folder, newest first. */
+export function selectVisibleEmails(state: Pick<AppState, 'emails' | 'selectedFolder' | 'searchQuery'>) {
+  const { emails, selectedFolder, searchQuery } = state;
+  const q = searchQuery.trim().toLowerCase();
+  return emails
+    .filter((e) => {
+      if (selectedFolder === 'starred') return e.isStarred && e.folder !== 'trash';
+      if (selectedFolder === 'important') return e.isImportant && e.folder !== 'trash';
+      return e.folder === selectedFolder;
+    })
+    .filter(
+      (e) =>
+        !q ||
+        e.subject.toLowerCase().includes(q) ||
+        e.from.toLowerCase().includes(q) ||
+        (e.fromName || '').toLowerCase().includes(q) ||
+        e.preview.toLowerCase().includes(q)
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}

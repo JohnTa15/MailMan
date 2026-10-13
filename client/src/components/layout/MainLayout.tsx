@@ -1,207 +1,123 @@
-import { FC, useState } from 'react';
-import { Inbox, Send, Trash2, Archive, Star, Tag, Settings, LogOut, Menu, Plus, ChevronDown } from 'lucide-react';
+import { FC, useEffect, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { MailOpen, PenSquare } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
-import { emailService } from '../../services/emailService';
+import { useMail } from '../../hooks/useMail';
 import { Email } from '../../types';
 import { EmailList } from '../email/EmailList';
 import { EmailView } from '../email/EmailView';
 import { ComposeModal } from '../compose/ComposeModal';
-import { Button } from '../ui/Button';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Sidebar } from './Sidebar';
+
+const ReaderEmpty: FC = () => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    className="flex h-full flex-col items-center justify-center p-8 text-center"
+  >
+    <div className="relative mb-6">
+      <div className="absolute -inset-6 rounded-full bg-brand-gradient opacity-20 blur-3xl" />
+      <div className="glass relative flex h-24 w-24 animate-float items-center justify-center rounded-[2rem] text-primary-500 shadow-card">
+        <MailOpen className="h-10 w-10" />
+      </div>
+    </div>
+    <p className="text-lg font-semibold">Select a message</p>
+    <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+      Pick something from the list, or press <kbd className="rounded-md border border-ink-200 px-1.5 py-0.5 font-mono text-xs dark:border-white/10">C</kbd> to compose.
+    </p>
+  </motion.div>
+);
 
 export const MainLayout: FC = () => {
-  const { 
-    view, 
-    setView, 
-    selectedEmail, 
-    setSelectedEmail, 
-    emails,
-    setEmails,
-    currentAccountId,
-    sidebarOpen,
-    setSidebarOpen,
-    darkMode,
-    setDarkMode,
-  } = useAppStore();
+  const emails = useAppStore((s) => s.emails);
+  const selectedEmailId = useAppStore((s) => s.selectedEmailId);
+  const selectEmail = useAppStore((s) => s.selectEmail);
+  const compose = useAppStore((s) => s.compose);
+  const openCompose = useAppStore((s) => s.openCompose);
+  const { refresh, markRead } = useMail();
 
-  const [showCompose, setShowCompose] = useState(false);
-  const queryClient = useQueryClient();
+  const selected = useMemo(() => emails.find((e) => e.id === selectedEmailId) || null, [emails, selectedEmailId]);
 
-  // Fetch emails
-  const { data: fetchedEmails, isLoading } = useQuery({
-    queryKey: ['emails', currentAccountId],
-    queryFn: () => emailService.getEmails({ accountId: currentAccountId }),
-    enabled: !!currentAccountId,
-  });
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
-  // Update store when emails change
-  useState(() => {
-    if (fetchedEmails) {
-      setEmails(fetchedEmails);
-    }
-  });
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('input, textarea, [contenteditable]') || e.metaKey || e.ctrlKey || e.altKey) return;
+      const { compose: open } = useAppStore.getState();
+      if (open) return;
+      if (e.key === 'c') {
+        e.preventDefault();
+        openCompose();
+      } else if (e.key === 'Escape') {
+        selectEmail(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [openCompose, selectEmail]);
 
-  const handleRefresh = async () => {
-    try {
-      const freshEmails = await emailService.getEmails({ accountId: currentAccountId });
-      setEmails(freshEmails);
-      await queryClient.invalidateQueries({ queryKey: ['emails'] });
-    } catch (error) {
-      console.error('Failed to refresh emails:', error);
-    }
-  };
-
-  const handleEmailSelect = (email: Email) => {
-    setSelectedEmail(email);
-    setView('thread');
-  };
-
-  const handleBackToList = () => {
-    setSelectedEmail(null);
-    setView('list');
-  };
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
+  const handleSelect = (email: Email) => {
+    selectEmail(email.id);
+    markRead(email);
   };
 
   return (
-    <div className={`flex h-screen bg-gray-50 dark:bg-gray-950 ${darkMode ? 'dark' : ''}`}>
-      {/* Sidebar */}
-      <aside
-        className={`${
-          sidebarOpen ? 'w-64' : 'w-16'
-        } flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-all duration-200`}
-      >
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between p-4">
-            {sidebarOpen && (
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                  <Inbox className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-lg text-gray-900 dark:text-white">
-                  OpenWebMail
-                </span>
-              </div>
-            )}
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Menu className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
+    <div className="flex h-full overflow-hidden">
+      <Sidebar />
 
-          {/* Compose Button */}
-          <div className="px-3 mb-4">
-            <Button
-              onClick={() => setShowCompose(true)}
-              className={`w-full ${sidebarOpen ? '' : 'px-0'}`}
-            >
-              <Plus className={sidebarOpen ? 'w-4 h-4 mr-2' : 'w-5 h-5'} />
-              {sidebarOpen && 'Compose'}
-            </Button>
-          </div>
+      <main className="relative flex min-w-0 flex-1">
+        <EmailList
+          onSelect={handleSelect}
+          className="w-full border-ink-200/70 dark:border-white/5 lg:w-[380px] lg:shrink-0 lg:border-r xl:w-[420px]"
+        />
 
-          {/* Navigation */}
-          <nav className="flex-1 px-3 space-y-1">
-            {[
-              { icon: Inbox, label: 'Inbox', id: 'inbox' },
-              { icon: Send, label: 'Sent', id: 'sent' },
-              { icon: Archive, label: 'Archive', id: 'archive' },
-              { icon: Star, label: 'Starred', id: 'starred' },
-              { icon: Tag, label: 'Labels', id: 'labels' },
-              { icon: Trash2, label: 'Trash', id: 'trash' },
-            ].map(({ icon: Icon, label, id }) => (
-              <button
-                key={id}
-                onClick={() => {
-                  // Handle folder selection
-                }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  view === id
-                    ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                {sidebarOpen && <span className="font-medium">{label}</span>}
-              </button>
-            ))}
-          </nav>
-
-          {/* Bottom Actions */}
-          <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-1">
-            <button
-              onClick={toggleDarkMode}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <Settings className="w-5 h-5" />
-              {sidebarOpen && <span className="font-medium">Settings</span>}
-            </button>
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              {sidebarOpen && <span className="font-medium">Logout</span>}
-            </button>
-          </div>
+        {/* Desktop reader */}
+        <div className="hidden min-w-0 flex-1 bg-white/60 dark:bg-ink-900/40 lg:block">
+          <AnimatePresence mode="wait">
+            {selected ? <EmailView key={selected.id} email={selected} onBack={() => selectEmail(null)} /> : <ReaderEmpty key="empty" />}
+          </AnimatePresence>
         </div>
-      </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex overflow-hidden">
-        {/* Email List */}
-        {view === 'list' && (
-          <div className="w-96 flex-shrink-0 border-r border-gray-200 dark:border-gray-800">
-            <EmailList
-              emails={emails}
-              isLoading={isLoading}
-              onEmailSelect={handleEmailSelect}
-              onRefresh={handleRefresh}
-            />
-          </div>
-        )}
+        {/* Mobile reader slides over the list */}
+        <AnimatePresence>
+          {selected && (
+            <motion.div
+              key="mobile-reader"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 40 }}
+              className="absolute inset-0 z-20 bg-ink-50 dark:bg-ink-950 lg:hidden"
+            >
+              <EmailView email={selected} onBack={() => selectEmail(null)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Email View / Thread */}
-        {view === 'thread' && selectedEmail && (
-          <div className="flex-1">
-            <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
-              <Button variant="ghost" size="sm" onClick={handleBackToList}>
-                ← Back
-              </Button>
-            </div>
-            <EmailView
-              email={selectedEmail}
-              onReply={() => setShowCompose(true)}
-              onDelete={() => {
-                // Handle delete
-              }}
-            />
-          </div>
-        )}
-
-        {/* Empty State */}
-        {view === 'list' && !selectedEmail && (
-          <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <Inbox className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">Select an email to read</p>
-              <p className="text-sm mt-1">Choose from your inbox</p>
-            </div>
-          </div>
-        )}
+        {/* Mobile compose button */}
+        <AnimatePresence>
+          {!selected && (
+            <motion.button
+              initial={{ scale: 0, rotate: -45 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: 45 }}
+              whileTap={{ scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              onClick={() => openCompose()}
+              aria-label="Compose"
+              className="absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-5 z-10 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-glow lg:hidden"
+            >
+              <PenSquare className="h-6 w-6" />
+            </motion.button>
+          )}
+        </AnimatePresence>
       </main>
 
-      {/* Compose Modal */}
-      {showCompose && (
-        <ComposeModal
-          onClose={() => setShowCompose(false)}
-        />
-      )}
+      <AnimatePresence>{compose && <ComposeModal key="compose" draft={compose} />}</AnimatePresence>
     </div>
   );
 };

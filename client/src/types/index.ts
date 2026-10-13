@@ -1,5 +1,3 @@
-import { ReactNode } from 'react';
-
 export interface Email {
   id: string;
   accountId: string;
@@ -29,14 +27,6 @@ export interface Attachment {
   url?: string;
 }
 
-export interface Folder {
-  id: string;
-  name: string;
-  count: number;
-  type: 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'draft' | 'spam' | 'custom';
-  color?: string;
-}
-
 export interface Account {
   id: string;
   email: string;
@@ -44,4 +34,13 @@ export interface Account {
   avatar?: string;
   type: 'imap' | 'ews' | 'gmail' | 'outlook';
   connected: boolean;
+}
+
+/** Sidebar views; `starred` and `important` are filters across all folders. */
+export type FolderId = 'inbox' | 'starred' | 'important' | 'sent' | 'drafts' | 'archive' | 'trash';
+
+export interface ComposeDraft {
+  to?: string;
+  subject?: string;
+  body?: string;
 }

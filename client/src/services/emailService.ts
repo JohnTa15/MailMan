@@ -1,114 +1,67 @@
 import api from '../lib/api';
-import { Email, Account } from '../types';
+import { Account, Email } from '../types';
 
-export interface LoginCredentials {
+export interface LoginRequest {
   email: string;
   password: string;
+  imapHost?: string;
+  imapPort?: number;
+  imapSecure?: boolean;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
 }
 
-export interface IMAPConfig {
-  host: string;
-  port: number;
-  secure: boolean;
-  auth: {
-    user: string;
-    pass: string;
+export interface LoginResponse {
+  access_token: string;
+  account: Account;
+}
+
+type ServerEmail = Omit<Email, 'labels' | 'attachments' | 'preview'> & {
+  labels: string[] | null;
+  preview: string | null;
+};
+
+function normalize(email: ServerEmail): Email {
+  return {
+    ...email,
+    fromName: email.fromName || undefined,
+    preview: email.preview || '',
+    labels: email.labels || [],
+    attachments: [],
   };
 }
 
-export interface EWSConfig {
-  url: string;
-  auth: {
-    username: string;
-    password: string;
-  };
-}
-
-export class EmailService {
-  async login(credentials: LoginCredentials) {
-    const response = await api.post('/auth/login', credentials);
+export const emailService = {
+  async login(request: LoginRequest) {
+    const response = await api.post<LoginResponse>('/auth/login', request);
     return response.data;
-  }
+  },
 
-  async logout() {
-    await api.post('/auth/logout');
-  }
+  async getEmails() {
+    const response = await api.get<ServerEmail[]>('/emails', { params: { limit: 500 } });
+    return response.data.map(normalize);
+  },
 
-  async getAccounts() {
-    const response = await api.get('/accounts');
-    return response.data as Account[];
-  }
+  async updateEmail(id: string, changes: Partial<Pick<Email, 'isRead' | 'isStarred' | 'isImportant' | 'folder'>>) {
+    await api.patch(`/emails/${id}`, changes);
+  },
 
-  async addAccount(account: Partial<Account> & IMAPConfig | EWSConfig) {
-    const response = await api.post('/accounts', account);
-    return response.data as Account;
-  }
-
-  async removeAccount(id: string) {
-    await api.delete(`/accounts/${id}`);
-  }
-
-  async getFolders(accountId?: string) {
-    const response = await api.get('/folders', {
-      params: accountId ? { accountId } : {},
-    });
-    return response.data;
-  }
-
-  async getEmails(params: {
-    folder?: string;
-    page?: number;
-    limit?: number;
-    search?: string;
-    accountId?: string;
-  }) {
-    const response = await api.get('/emails', { params });
-    return response.data as Email[];
-  }
-
-  async getEmail(id: string) {
-    const response = await api.get(`/emails/${id}`);
-    return response.data as Email;
-  }
-
-  async markAsRead(id: string, read: boolean) {
-    await api.patch(`/emails/${id}`, { isRead: read });
-  }
-
-  async toggleStar(id: string) {
-    await api.patch(`/emails/${id}`, { isStarred: true });
-  }
-
-  async delete(id: string) {
+  async deleteEmail(id: string) {
     await api.delete(`/emails/${id}`);
-  }
+  },
 
-  async sendEmail(data: {
-    accountId: string;
-    to: string;
-    subject: string;
-    body: string;
-    html?: string;
-    attachments?: File[];
-  }) {
-    const formData = new FormData();
-    formData.append('to', data.to);
-    formData.append('subject', data.subject);
-    formData.append('body', data.body);
-    if (data.html) formData.append('html', data.html);
-    if (data.accountId) formData.append('accountId', data.accountId);
-    
-    if (data.attachments) {
-      data.attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
-    }
+  async sync() {
+    const response = await api.post<{ added: number }>('/mail/sync');
+    return response.data.added;
+  },
 
-    const response = await api.post('/emails/send', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
-  }
-}
-
-export const emailService = new EmailService();
+  async sendEmail(data: { to: string; subject: string; body: string; attachments: File[] }) {
+    const form = new FormData();
+    form.append('to', data.to);
+    form.append('subject', data.subject);
+    form.append('body', data.body);
+    data.attachments.forEach((file) => form.append('attachments', file));
+    await api.post('/mail/send', form);
+  },
+};

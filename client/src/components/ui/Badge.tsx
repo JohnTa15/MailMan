@@ -1,30 +1,28 @@
 import { FC, ReactNode } from 'react';
+import { cn } from '../../lib/cn';
 
 export interface BadgeProps {
   children: ReactNode;
-  variant?: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'danger';
   className?: string;
 }
 
-export const Badge: FC<BadgeProps> = ({
-  children,
-  variant = 'default',
-  className = '',
-}) => {
-  const variantClasses = {
-    default: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-    primary: 'bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-400',
-    secondary: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-    success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
-    danger: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`}
-    >
-      {children}
-    </span>
-  );
+const variantClasses = {
+  default: 'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300',
+  primary: 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300',
+  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
+  danger: 'bg-rose-50 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300',
 };
+
+export const Badge: FC<BadgeProps> = ({ children, variant = 'default', className }) => (
+  <span
+    className={cn(
+      'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize tracking-wide',
+      variantClasses[variant],
+      className
+    )}
+  >
+    {children}
+  </span>
+);
