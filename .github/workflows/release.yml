@@ -61,7 +61,7 @@ jobs:
       - name: Build Client
         run: |
           cd client
-          npm install
+          npm install --legacy-peer-deps
           npm run build
 
       - name: Sync Capacitor Android
