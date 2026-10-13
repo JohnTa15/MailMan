@@ -53,10 +53,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Dependencies & Build Client
+      - name: Build Client
         run: |
+          cd client
           npm install
-          npm run build --workspace=client
+          npm run build
 
       - name: Sync Capacitor Android
         run: |
