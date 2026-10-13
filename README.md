@@ -73,7 +73,21 @@ npm run dev
 
 The application will be available at:
 - Client: http://localhost:3000
-- Server: http://localhost:3001
+- Server: http://localhost:3001 (API under `/api`, health check at `/health`)
+
+Sign in with any IMAP account (Gmail, Outlook, iCloud and Yahoo are detected
+automatically; for other providers open **Server settings**), or choose
+**Try the demo** to explore the interface with sample mail and no server.
+
+### Configuration
+
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `JWT_SECRET` | server | Signs session tokens. **Required in production.** |
+| `ENCRYPTION_KEY` | server | Encrypts stored mail passwords. **Required in production; keep it stable.** |
+| `CORS_ORIGIN` | server | Comma-separated list of allowed client origins. |
+| `DATABASE_PATH` | server | SQLite database file. |
+| `VITE_API_URL` | client (build time) | API base URL, default `http://localhost:3001/api`. |
 
 ### Building for Production
 
@@ -97,7 +111,8 @@ Once the server is running, visit http://localhost:3001/api/docs for Swagger doc
 - **CORS**: Configurable cross-origin resource sharing
 - **Rate Limiting**: Prevent abuse
 - **Input Validation**: Class-validator for request sanitization
-- **Password Hashing**: bcrypt for password storage
+- **Encrypted Credentials**: mail passwords are stored with AES-256-GCM
+- **Sandboxed Email Rendering**: message HTML is sanitized and shown in a script-less sandboxed iframe
 - **JWT Tokens**: Secure authentication
 - **SQL Injection Prevention**: TypeORM parameterized queries
 
