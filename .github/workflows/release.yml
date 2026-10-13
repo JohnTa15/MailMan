@@ -70,21 +70,17 @@ jobs:
           npm install
           npx cap sync android
 
-      - name: Build Android APK (Debug/Release)
+      - name: Build Android APK
         run: |
-          cd android/android
-          chmod +x gradlew || true
-          if [ -f "./gradlew" ]; then
-            ./gradlew assembleDebug
-          else
-            gradle assembleDebug || true
-          fi
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: android/android/app/build/outputs/apk/**/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
 
   release:
     name: Create GitHub Release

@@ -16,6 +16,11 @@
     "test": "npm run test --workspaces"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
   }
 }

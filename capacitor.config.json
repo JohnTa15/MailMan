@@ -1,0 +1,6 @@
+{
+  "appId": "com.mailman.app",
+  "appName": "Mailman",
+  "webDir": "client/dist",
+  "bundledWebRuntime": false
+}
