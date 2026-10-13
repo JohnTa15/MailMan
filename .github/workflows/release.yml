@@ -18,13 +18,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
 
-      - name: Install Dependencies & Build Client & Electron
+      - name: Build Client
         run: |
+          cd client
           npm install
-          npm run build --workspace=client
-          npm run package --workspace=electron
+          npm run build
+
+      - name: Package Electron App (.exe)
+        run: |
+          cd electron
+          npm install
+          npm run package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
