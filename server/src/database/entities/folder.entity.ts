@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Account } from './account.entity';
 
 @Entity('folders')
@@ -13,7 +13,7 @@ export class Folder {
   name: string;
 
   @Column({ default: 'custom' })
-  type: 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'draft' | 'spam' | 'custom';
+  type: 'inbox' | 'sent' | 'drafts' | 'trash' | 'archive' | 'spam' | 'custom';
 
   @Column({ nullable: true })
   color: string;

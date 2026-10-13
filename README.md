@@ -15,6 +15,14 @@ A beautiful, lightweight, fast, and secure open source web mail client with supp
 - **Multi-account**: Manage multiple email accounts
 - **Security First**: Helmet security headers, rate limiting, input validation
 
+- **Backend**: NestJS with TypeScript, REST API, Swagger documentation, JWT authentication
+- **Data Layer**: TypeORM with SQLite (easily switchable)
+- **Protocol Support**: IMAP, SMTP, EWS (Exchange Web Services)
+- **Protocol Security**: SSL/TLS encryption, OAuth2 support
+- **Security Features**: Helmet, CORS, Rate Limiting, Input Validation, Password Hashing (bcrypt), SQL Injection Prevention via parameterized queries
+- **UI Components**: React, Vite, Tailwind CSS, Zustand, TanStack Query, React Router
+- **Project Structure**: Modular, organized, and scalable architecture with clear separation of concerns.
+
 ## Architecture
 
 ```

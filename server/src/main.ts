@@ -11,8 +11,29 @@ async function bootstrap() {
   app.use(helmet());
   app.use(compression());
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
-    credentials: true,
+      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      credentials: true,
+    });
+
+  // Security configuration
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    })
+  );
+
+  // Environment configuration
+  process.env.PORT = process.env.PORT || '3001';
+
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      version: '1.0.0',
+      timestamp: new Date().toISOString()
+    });
   });
   
   // Validation
