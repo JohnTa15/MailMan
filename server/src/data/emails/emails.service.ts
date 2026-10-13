@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { FindOptionsWhere, Repository, Like } from 'typeorm';
 import { Email } from '../../database/entities/email.entity';
 
 @Injectable()
@@ -19,16 +19,16 @@ export class EmailService {
   }): Promise<Email[]> {
     const { accountId, folder, page = 1, limit = 50, search } = params;
     
-    const where: any = {};
-    if (accountId) where.accountId = accountId;
-    if (folder) where.folder = folder;
-    if (search) {
-      where.or = [
-        { subject: Like(`%${search}%`) },
-        { from: Like(`%${search}%`) },
-        { body: Like(`%${search}%`) },
-      ];
-    }
+    const base: FindOptionsWhere<Email> = {};
+    if (accountId) base.accountId = accountId;
+    if (folder) base.folder = folder;
+    // An array of conditions is OR-ed together by TypeORM
+    const where = search
+      ? (['subject', 'from', 'fromName', 'body'] as const).map((field) => ({
+          ...base,
+          [field]: Like(`%${search}%`),
+        }))
+      : base;
 
     return this.emailsRepository.find({
       where,
@@ -65,6 +65,10 @@ export class EmailService {
     if (email) {
       await this.emailsRepository.update(id, { isStarred: !email.isStarred });
     }
+  }
+
+  async findByMessageId(accountId: string, messageId: string): Promise<Email | null> {
+    return this.emailsRepository.findOne({ where: { accountId, messageId } });
   }
 
   async search(query: string, accountId?: string): Promise<Email[]> {

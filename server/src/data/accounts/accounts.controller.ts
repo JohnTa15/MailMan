@@ -1,36 +1,41 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, NotFoundException, UseGuards } from '@nestjs/common';
 import { AccountService } from './accounts.service';
 import { Account } from '../../database/entities/account.entity';
+import { CurrentAccount, JwtAuthGuard } from '../../auth/jwt-auth.guard';
+
+export type PublicAccount = Omit<Account, 'encryptedPassword' | 'accessToken' | 'refreshToken'>;
+
+function toPublic(account: Account): PublicAccount {
+  const { encryptedPassword, accessToken, refreshToken, ...rest } = account;
+  return rest;
+}
 
 @Controller('accounts')
+@UseGuards(JwtAuthGuard)
 export class AccountController {
   constructor(private readonly accountService: AccountService) {}
 
-  @Get()
-  async findAll(): Promise<Account[]> {
-    return this.accountService.findAll();
+  @Get('me')
+  async me(@CurrentAccount() accountId: string): Promise<PublicAccount> {
+    const account = await this.accountService.findOne(accountId);
+    if (!account) throw new NotFoundException();
+    return toPublic(account);
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string): Promise<Account | null> {
-    return this.accountService.findOne(id);
-  }
-
-  @Post()
-  async create(@Body() createAccountDto: Partial<Account>): Promise<Account> {
-    return this.accountService.create(createAccountDto);
-  }
-
-  @Put(':id')
+  @Patch('me')
   async update(
-    @Param('id') id: string,
-    @Body() updateAccountDto: Partial<Account>,
-  ): Promise<Account | null> {
-    return this.accountService.update(id, updateAccountDto);
+    @CurrentAccount() accountId: string,
+    @Body() body: { displayName?: string },
+  ): Promise<PublicAccount> {
+    const account = await this.accountService.update(accountId, {
+      displayName: body.displayName,
+    });
+    if (!account) throw new NotFoundException();
+    return toPublic(account);
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: string): Promise<void> {
-    return this.accountService.remove(id);
+  @Delete('me')
+  async remove(@CurrentAccount() accountId: string): Promise<void> {
+    return this.accountService.remove(accountId);
   }
 }

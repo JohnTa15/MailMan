@@ -1,5 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { AuthService, LoginDto } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -7,17 +13,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() loginDto: { email: string; password: string }) {
-    const user = await this.authService.validateUser(
-      loginDto.email,
-      loginDto.password,
-    );
-    
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    
-    return this.authService.login(user);
+  async login(@Body() loginDto: LoginDto) {
+    return this.authService.connect(loginDto);
   }
 
   @Post('refresh')
