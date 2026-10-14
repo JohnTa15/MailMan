@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy, VerifyCallback } from 'passport-facebook';
+import { Strategy } from 'passport-facebook';
 import { AuthService } from '../auth.service';
+
+type VerifyCallback = (error: any, user?: any, info?: any) => void;
 
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
@@ -24,7 +26,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     const email = emails?.[0]?.value;
 
     if (!email) {
-      return done(new Error('Facebook account has no email address. Please allow email access.'), null);
+      return done(new Error('Facebook account has no email address. Please allow email access.'), undefined);
     }
 
     try {
@@ -38,7 +40,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       });
       return done(null, account);
     } catch (error) {
-      return done(error, null);
+      return done(error, undefined);
     }
   }
 }

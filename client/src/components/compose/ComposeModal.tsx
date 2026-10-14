@@ -159,7 +159,7 @@ export const ComposeModal: FC<{ draft: ComposeDraft }> = ({ draft }) => {
             {isSending ? 'Sending…' : 'Send'}
           </Button>
           <label>
-            <IconButton label="Attach files" onClick={(e) => (e.currentTarget.nextElementSibling as HTMLInputElement | null)?.click()}>
+            <IconButton label="Attach files" onClick={(e: React.MouseEvent) => (e.currentTarget.nextElementSibling as HTMLInputElement | null)?.click()}>
               <Paperclip className="h-[18px] w-[18px]" />
             </IconButton>
             <input

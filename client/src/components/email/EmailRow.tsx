@@ -32,7 +32,7 @@ export const EmailRow = forwardRef<HTMLDivElement, EmailRowProps>(({ email, inde
       animate={{ opacity: 1, y: 0, transition: { delay: Math.min(index, 12) * 0.035, type: 'spring', stiffness: 380, damping: 32 } }}
       exit={{ opacity: 0, x: -60, height: 0, marginTop: 0, marginBottom: 0, paddingTop: 0, paddingBottom: 0, transition: { duration: 0.25 } }}
       onClick={() => onSelect(email)}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(email))}
+      onKeyDown={(e: React.KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onSelect(email))}
       role="button"
       tabIndex={0}
       aria-current={selected ? 'true' : undefined}

@@ -35,8 +35,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       className={cn(
         'relative inline-flex select-none items-center justify-center rounded-xl font-semibold transition-[background-position,background-color,box-shadow,opacity] duration-500 disabled:cursor-not-allowed disabled:opacity-60',
-        variantClasses[variant],
-        sizeClasses[size],
+        variantClasses[variant as keyof typeof variantClasses],
+        sizeClasses[size as keyof typeof sizeClasses],
         className
       )}
       {...rest}

@@ -6,8 +6,8 @@
   "author": "Mailman",
   "scripts": {
     "dev": "cross-env NODE_ENV=development concurrently \"npm run dev:server\" \"wait-on http://localhost:3000 && electron .\"",
-    "dev:client": "npm run dev --workspace=client",
-    "build": "npm run build --workspace=client",
+    "dev:client": "cd .. && npm run dev --workspace=client",
+    "build": "cd .. && npm run build --workspace=client",
     "package": "electron-builder"
   },
   "build": {

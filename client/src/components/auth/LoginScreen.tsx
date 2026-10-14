@@ -367,15 +367,23 @@ export const LoginScreen: FC = () => {
                     .then(data => {
                       toast.success(`App version ${data.version} available`);
                       if (data.needsUpdate) {
-                        toast('New features and bug fixes available! Click OK to update.', {
-                          duration: 10000,
-                          action: {
-                            label: 'Update Now',
-                            onClick: () => {
-                              window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/app-version/update`;
-                            }
-                          }
-                        });
+                        toast(
+                          (t) => (
+                            <span className="flex items-center gap-3">
+                              New features and bug fixes available!
+                              <button
+                                className="shrink-0 font-semibold text-primary-600 dark:text-primary-300"
+                                onClick={() => {
+                                  toast.dismiss(t.id);
+                                  window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/app-version/update`;
+                                }}
+                              >
+                                Update Now
+                              </button>
+                            </span>
+                          ),
+                          { duration: 10000 }
+                        );
                       }
                     })
                     .catch(error => {

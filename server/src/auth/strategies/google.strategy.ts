@@ -26,7 +26,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const email = emails?.[0]?.value;
 
     if (!email) {
-      return done(new Error('Google account has no email address'), null);
+      return done(new Error('Google account has no email address'), undefined);
     }
 
     try {
@@ -40,7 +40,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       });
       return done(null, account);
     } catch (error) {
-      return done(error, null);
+      return done(error, undefined);
     }
   }
 }

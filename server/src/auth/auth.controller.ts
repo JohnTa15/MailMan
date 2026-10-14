@@ -40,7 +40,7 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(@Req() req, @Res() res) {
+  async googleAuthCallback(@Req() req: any, @Res() res: any) {
     const result = req.user;
     res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
   }
@@ -51,7 +51,7 @@ export class AuthController {
 
   @Get('facebook/callback')
   @UseGuards(AuthGuard('facebook'))
-  async facebookAuthCallback(@Req() req, @Res() res) {
+  async facebookAuthCallback(@Req() req: any, @Res() res: any) {
     const result = req.user;
     res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
   }
