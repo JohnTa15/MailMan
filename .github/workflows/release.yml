@@ -1,9 +1,16 @@
 name: Build and Release
 
+# Every push to main publishes a new release: the patch version goes up by
+# one from the latest v* tag (or to the version in package.json, if that is
+# higher). Pushing a v* tag or running this manually with a tag also works.
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
+    # Documentation-only changes don't need a new release (not applied to tags)
+    paths-ignore:
+      - '**.md'
   workflow_dispatch:
     inputs:
       tag:
@@ -11,9 +18,64 @@ on:
         required: false
         default: ''
 
+# One release at a time, in push order
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  version:
+    name: Determine version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: v
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          release=true
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+          elif [ "$EVENT" = "workflow_dispatch" ] && [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          else
+            latest=$(git tag -l 'v*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)
+            latest=${latest:-v0.0.0}
+            IFS=. read -r major minor patch <<< "${latest#v}"
+            next="$major.$minor.$((patch + 1))"
+            pkg=$(node -p "require('./package.json').version")
+            # A manual bump in package.json (e.g. to 2.0.0) wins when higher
+            if [ "$(printf '%s\n%s\n' "$next" "$pkg" | sort -V | tail -n1)" = "$pkg" ] && [ "$pkg" != "${latest#v}" ]; then
+              next="$pkg"
+            fi
+            tag="v$next"
+            # A manual run without a tag only builds
+            [ "$EVENT" = "workflow_dispatch" ] && release=false
+          fi
+          if ! [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '$tag' must look like v1.2.3"
+            exit 1
+          fi
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "Version: ${tag#v} (release: $release)" >> "$GITHUB_STEP_SUMMARY"
+
   build-windows:
     name: Build Windows (.exe)
+    needs: version
     runs-on: windows-latest
     steps:
       - name: Checkout Repository
@@ -27,6 +89,9 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: Set Version
+        run: node scripts/set-version.mjs ${{ needs.version.outputs.version }}
 
       - name: Build Client
         run: npm run build --workspace=client
@@ -44,6 +109,7 @@ jobs:
 
   build-android:
     name: Build Android (.apk)
+    needs: version
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -63,6 +129,9 @@ jobs:
 
       - name: Install Dependencies
         run: npm ci
+
+      - name: Set Version
+        run: node scripts/set-version.mjs ${{ needs.version.outputs.version }}
 
       - name: Build Client
         run: npm run build --workspace=client
@@ -86,21 +155,12 @@ jobs:
 
   release:
     name: Create GitHub Release
-    needs: [build-windows, build-android]
-    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    needs: [version, build-windows, build-android]
+    if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - name: Validate Tag
-        run: |
-          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Release tag '$TAG' must look like v1.2.3"
-            exit 1
-          fi
-
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
 
@@ -113,8 +173,8 @@ jobs:
           files: |
             windows-installer/*.exe
             android-apk/**/*.apk
-          # Created at the built commit when started manually with a tag
-          tag_name: ${{ env.TAG }}
+          # Creates the tag at the built commit when it doesn't exist yet
+          tag_name: ${{ needs.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
           fail_on_unmatched_files: true

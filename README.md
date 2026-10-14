@@ -95,6 +95,19 @@ automatically; for other providers open **Server settings**), or choose
 npm run build
 ```
 
+### Releases
+
+Every push to `main` builds the Windows installer and the Android APK and
+publishes them as a GitHub Release. The patch version goes up automatically
+(`1.1.4` → `1.1.5`). For a bigger jump, set it yourself first and push:
+
+```bash
+node scripts/set-version.mjs 1.2.0
+```
+
+Changes that only touch Markdown files don't create a release. The apps check
+for new releases themselves and offer the download.
+
 ### Docker (e.g. Raspberry Pi)
 
 The server runs in a small container (amd64 or arm64, so a Raspberry Pi 4/5
