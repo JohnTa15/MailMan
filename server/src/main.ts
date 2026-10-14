@@ -39,7 +39,7 @@ async function bootstrap() {
   app.getHttpAdapter().get('/health', (req: Request, res: Response) => {
     res.status(200).json({
       status: 'ok',
-      version: '1.1.0',
+      version: '1.1.4',
       timestamp: new Date().toISOString(),
     });
   });
