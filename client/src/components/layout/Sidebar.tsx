@@ -8,6 +8,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button, IconButton } from '../ui/Button';
 import { LogoMark } from '../ui/Logo';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { UpdateButton } from '../ui/UpdateButton';
 
 export const FOLDERS: { id: FolderId; label: string; icon: typeof Inbox }[] = [
   { id: 'inbox', label: 'Inbox', icon: Inbox },
@@ -119,6 +120,7 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
       </nav>
 
       <div className="mt-4 space-y-1 border-t border-ink-200/70 pt-4 dark:border-white/10">
+        <UpdateButton variant="row" autoCheck />
         <ThemeToggle showLabel className="w-full" />
         {account && (
           <div className="flex items-center gap-3 rounded-xl px-2 py-2">
