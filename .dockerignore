@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/*.db
+**/.env
+.git
+.github
+android
+graphify-out
+client/src
+client/public
+electron/main

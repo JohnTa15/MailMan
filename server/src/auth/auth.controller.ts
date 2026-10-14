@@ -11,6 +11,9 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService, LoginDto } from './auth.service';
+import { OAuthConfiguredGuard } from './oauth.config';
+
+const CLIENT_URL = () => process.env.CLIENT_URL || 'http://localhost:3000';
 
 @Controller('auth')
 export class AuthController {
@@ -35,24 +38,24 @@ export class AuthController {
   }
 
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(new OAuthConfiguredGuard('google'), AuthGuard('google'))
   async googleAuth() {}
 
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(new OAuthConfiguredGuard('google'), AuthGuard('google'))
   async googleAuthCallback(@Req() req: any, @Res() res: any) {
     const result = req.user;
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
+    res.redirect(`${CLIENT_URL()}/auth/callback?token=${result.access_token}`);
   }
 
   @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
+  @UseGuards(new OAuthConfiguredGuard('facebook'), AuthGuard('facebook'))
   async facebookAuth() {}
 
   @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
+  @UseGuards(new OAuthConfiguredGuard('facebook'), AuthGuard('facebook'))
   async facebookAuthCallback(@Req() req: any, @Res() res: any) {
     const result = req.user;
-    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/auth/callback?token=${result.access_token}`);
+    res.redirect(`${CLIENT_URL()}/auth/callback?token=${result.access_token}`);
   }
 }

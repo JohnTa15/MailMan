@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-facebook';
 import { AuthService } from '../auth.service';
+import { oauthCallbackUrl } from '../oauth.config';
 
 type VerifyCallback = (error: any, user?: any, info?: any) => void;
 
@@ -11,7 +12,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     super({
       clientID: process.env.FACEBOOK_CLIENT_ID || '',
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET || '',
-      callbackURL: process.env.FACEBOOK_CALLBACK_URL || `${process.env.API_URL || 'http://localhost:3000'}/auth/facebook/callback`,
+      callbackURL: oauthCallbackUrl('facebook'),
       profileFields: ['id', 'displayName', 'email'],
     });
   }

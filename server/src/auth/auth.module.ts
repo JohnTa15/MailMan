@@ -7,6 +7,7 @@ import { AccountsModule } from '../data/accounts/accounts.module';
 import { ImapModule } from '../protocols/imap/imap.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
+import { isOAuthConfigured } from './oauth.config';
 
 @Module({
   imports: [
@@ -21,8 +22,9 @@ import { FacebookStrategy } from './strategies/facebook.strategy';
   ],
   providers: [
     AuthService,
-    GoogleStrategy,
-    FacebookStrategy,
+    // Passport strategies throw without credentials, so register only configured ones
+    ...(isOAuthConfigured('google') ? [GoogleStrategy] : []),
+    ...(isOAuthConfigured('facebook') ? [FacebookStrategy] : []),
   ],
   controllers: [AuthController],
   exports: [AuthService],

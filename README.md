@@ -95,11 +95,23 @@ automatically; for other providers open **Server settings**), or choose
 npm run build
 ```
 
-### Docker Support
+### Docker (e.g. Raspberry Pi)
+
+The server runs in a small container (amd64 or arm64, so a Raspberry Pi 4/5
+with a 64-bit OS works). It uses roughly 100–200 MB of RAM.
 
 ```bash
-docker-compose up -d
+cp .env.docker.example .env   # set JWT_SECRET and ENCRYPTION_KEY
+docker compose up -d --build
+curl http://localhost:3001/health
 ```
+
+Mail data is kept in the `mailman-data` volume. Point the apps at the server
+by building the client with `VITE_API_URL=https://your-host/api`; the Android
+app needs HTTPS (for example via Cloudflare Tunnel or Tailscale).
+
+Google/Facebook sign-in is optional and stays off until both the client ID and
+secret for a provider are set.
 
 ## API Documentation
 
