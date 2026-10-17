@@ -1,6 +1,6 @@
 import { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, Archive, FileText, Inbox, LogOut, PenSquare, Send, Star, Trash2, X } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { FolderId } from '../../types';
 import { cn } from '../../lib/cn';
@@ -9,15 +9,25 @@ import { Button, IconButton } from '../ui/Button';
 import { LogoMark } from '../ui/Logo';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { UpdateButton } from '../ui/UpdateButton';
+import {
+  IconInbox,
+  IconStar,
+  IconFlag,
+  IconSend,
+  IconDrafts,
+  IconArchive,
+  IconTrash,
+  IconCompose,
+} from '../ui/MailIcons';
 
-export const FOLDERS: { id: FolderId; label: string; icon: typeof Inbox }[] = [
-  { id: 'inbox', label: 'Inbox', icon: Inbox },
-  { id: 'starred', label: 'Starred', icon: Star },
-  { id: 'important', label: 'Important', icon: AlertCircle },
-  { id: 'sent', label: 'Sent', icon: Send },
-  { id: 'drafts', label: 'Drafts', icon: FileText },
-  { id: 'archive', label: 'Archive', icon: Archive },
-  { id: 'trash', label: 'Trash', icon: Trash2 },
+export const FOLDERS: { id: FolderId; label: string; icon: FC<{ className?: string }> }[] = [
+  { id: 'inbox', label: 'Inbox', icon: IconInbox },
+  { id: 'starred', label: 'Starred', icon: IconStar },
+  { id: 'important', label: 'Important', icon: IconFlag },
+  { id: 'sent', label: 'Sent', icon: IconSend },
+  { id: 'drafts', label: 'Drafts', icon: IconDrafts },
+  { id: 'archive', label: 'Archive', icon: IconArchive },
+  { id: 'trash', label: 'Trash', icon: IconTrash },
 ];
 
 const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
@@ -66,7 +76,7 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
           onClose?.();
         }}
       >
-        <PenSquare className="h-4 w-4" />
+        <IconCompose className="h-4 w-4" />
         Compose
       </Button>
 
