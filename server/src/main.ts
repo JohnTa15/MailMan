@@ -6,6 +6,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import helmet from 'helmet';
 import compression from 'compression';
+import { PluginRegistryService } from './plugins/plugin-registry.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -37,18 +38,25 @@ async function bootstrap() {
     }),
   );
 
+  // Initialize plugin system
+  const pluginRegistry = app.get(PluginRegistryService);
+  pluginRegistry.setApp(app);
+  await pluginRegistry.initializeAll(app);
+
   // Health check endpoint
   app.getHttpAdapter().get('/health', (req: Request, res: Response) => {
     res.status(200).json({
       status: 'ok',
       version: '1.1.4',
       timestamp: new Date().toISOString(),
+      plugins: pluginRegistry.getPlugins().map((p) => p.id),
     });
   });
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`🚀 Server running on http://localhost:${port}`);
+  console.log(`🔌 ${pluginRegistry.getPlugins().length} plugin(s) loaded`);
 }
 
 bootstrap();

@@ -1,0 +1,8 @@
+{
+  "name": "mailman-plugin-webhook",
+  "version": "1.0.0",
+  "description": "Example external plugin: sends webhook notifications for email events",
+  "main": "index.js",
+  "author": "Mailman Contributors",
+  "license": "MIT"
+}

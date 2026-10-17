@@ -10,3 +10,10 @@ build/
 coverage/
 .nyc_output/
 *.tsbuildinfo
+
+# Graphify analysis output (local only)
+graphify-out/
+
+# Runtime data directories
+data/
+plugins/**/*.log

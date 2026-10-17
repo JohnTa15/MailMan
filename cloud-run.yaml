@@ -1,0 +1,70 @@
+# ============================================
+# Mailman - GCP Cloud Run Deployment
+# ============================================
+# Deploy with:
+#   gcloud run deploy mailman --source . --region us-central1
+#
+# Or using the pre-built image:
+#   docker build -t gcr.io/PROJECT_ID/mailman .
+#   docker push gcr.io/PROJECT_ID/mailman
+#   gcloud run deploy mailman --image gcr.io/PROJECT_ID/mailman --region us-central1
+# ============================================
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mailman
+  annotations:
+    run.googleapis.com/description: "OpenWebMail - Open Source Web Mail Client"
+spec:
+  template:
+    metadata:
+      annotations:
+        # Allow up to 10 minutes for long IMAP syncs
+        run.googleapis.com/timeout: "600"
+        # Keep at least 1 instance warm for email responsiveness
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+    spec:
+      containerConcurrency: 80
+      containers:
+        - image: gcr.io/PROJECT_ID/mailman:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_PATH
+              value: "/app/data/webmail.db"
+            - name: CORS_ORIGIN
+              value: "*"
+            # Secrets should use GCP Secret Manager:
+            # - name: JWT_SECRET
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: mailman-jwt-secret
+            #       key: latest
+            # - name: ENCRYPTION_KEY
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: mailman-encryption-key
+            #       key: latest
+          resources:
+            limits:
+              cpu: "1"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+          # Mount persistent volume for SQLite (use Cloud SQL for production)
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          emptyDir: {}
+          # For production, use a PersistentVolumeClaim or Cloud SQL:
+          # persistentVolumeClaim:
+          #   claimName: mailman-data-pvc

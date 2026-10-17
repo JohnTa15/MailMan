@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 **/node_modules
 **/dist
 **/*.db
@@ -9,3 +10,22 @@ graphify-out
 client/src
 client/public
 electron/main
+=======
+node_modules
+dist
+.git
+.github
+graphify-out
+android
+electron
+*.md
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+*.db
+*.sqlite
+.DS_Store
+Thumbs.db
+>>>>>>> 03d9f05 (feat: add plugin system, Dockerfile, and GCP Cloud Run deployment)

@@ -6,6 +6,7 @@ import { EmailsModule } from './data/emails/emails.module';
 import { FoldersModule } from './data/folders/folders.module';
 import { SecurityModule } from './security/security.module';
 import { ProtocolsModule } from './protocols/protocols.module';
+import { PluginsModule } from './plugins/plugins.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ProtocolsModule } from './protocols/protocols.module';
     EmailsModule,
     FoldersModule,
     ProtocolsModule,
+    PluginsModule,
   ],
 })
 export class AppModule {}
