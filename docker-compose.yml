@@ -1,42 +1,3 @@
-<<<<<<< HEAD
-# Mailman API server, e.g. on a Raspberry Pi:
-#   cp .env.docker.example .env   # then fill in the secrets
-#   docker compose up -d --build
-services:
-  mailman:
-    build: .
-    image: mailman-server
-    container_name: mailman
-    restart: unless-stopped
-    init: true
-    ports:
-      - "3001:3001"
-    environment:
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
-      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env}
-      # Web client, Android app (https://localhost) and desktop app (null)
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,https://localhost,null}
-      # Optional: Google / Facebook sign-in stays off unless both values are set
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
-      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
-      API_URL: ${API_URL:-}
-      CLIENT_URL: ${CLIENT_URL:-}
-    volumes:
-      - mailman-data:/data
-    # Comfortable on a Pi 4B; large attachments briefly need extra memory
-    mem_limit: 512m
-    cpus: 1.5
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: "3"
-
-volumes:
-  mailman-data:
-=======
 # ============================================
 # Mailman Docker Compose
 # For local development and GCP Cloud Run testing
@@ -49,6 +10,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_API_URL: /api
+    image: mailman-server
     container_name: mailman
     ports:
       - "${PORT:-8080}:8080"
@@ -81,8 +43,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    mem_limit: 512m
+    cpus: 1.5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
 volumes:
   mailman-data:
     driver: local
->>>>>>> 03d9f05 (feat: add plugin system, Dockerfile, and GCP Cloud Run deployment)
