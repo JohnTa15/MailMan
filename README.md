@@ -119,12 +119,49 @@ docker compose up -d --build
 curl http://localhost:3001/health
 ```
 
-Mail data is kept in the `mailman-data` volume. Point the apps at the server
-by building the client with `VITE_API_URL=https://your-host/api`; the Android
-app needs HTTPS (for example via Cloudflare Tunnel or Tailscale).
+Mail data is kept in the `mailman-data` volume. The server also serves the web
+app. In the desktop and Android apps, enter the server's address on the sign-in
+screen; the Android app needs HTTPS (for example via Caddy, Cloudflare Tunnel
+or Tailscale).
 
-Google/Facebook sign-in is optional and stays off until both the client ID and
-secret for a provider are set.
+### Accounts and invites
+
+Each person signs in to Mailman with their own account and connects any number
+of mailboxes (Gmail, Outlook/Office 365, Yahoo, iCloud or any IMAP server).
+
+- The **first account** created on a new server becomes the **admin**.
+- After that the server is **invite-only**: the admin creates invite links in
+  **Settings → Invites**. Each link works once and expires.
+
+### Google and Microsoft
+
+"Continue with Google/Microsoft" signs people in and connects their mailbox in
+one step. Each provider turns on once its client ID and secret are set in `.env`
+(with `PUBLIC_URL`, e.g. `PUBLIC_URL=https://mail.example.com`). Without them,
+Gmail still works with an app password; Outlook/Office 365 need Microsoft.
+
+**Google** (Google Cloud Console):
+1. *APIs & Services → OAuth consent screen*: External; add the scope
+   `https://mail.google.com/`. Under *Audience*, set the publishing status to
+   **In production** (in *Testing*, Google expires sign-ins after 7 days). Without
+   Google's verification you will see an "unverified app" warning; that is fine
+   for personal use (up to 100 people).
+2. *Credentials → Create credentials → OAuth client ID → Web application*.
+   Authorized redirect URI: `PUBLIC_URL/api/auth/oauth/google/callback`.
+3. Put the client ID and secret in `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
+
+**Microsoft** (portal.azure.com → *App registrations → New registration*):
+1. Supported accounts: *Any Microsoft Entra directory and personal Microsoft
+   accounts*. Redirect URI (*Web*): `PUBLIC_URL/api/auth/oauth/microsoft/callback`.
+2. *Certificates & secrets → New client secret*.
+3. *API permissions → Add → APIs my organization uses → Office 365 Exchange
+   Online → Delegated*: `IMAP.AccessAsUser.All` and `SMTP.Send`
+   (plus `offline_access`, `openid`, `email`, `profile` from Microsoft Graph).
+4. Put the Application (client) ID and the secret value in `MICROSOFT_CLIENT_ID`
+   and `MICROSOFT_CLIENT_SECRET`. Work accounts may need IMAP and authenticated
+   SMTP enabled for the mailbox by their admin.
+
+Restart the server after changing `.env` (`docker compose up -d`).
 
 ## API Documentation
 
