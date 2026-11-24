@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ComposeDraft, Email, FolderId, Mailbox, User } from '../types';
+import { ComposeDraft, Email, FolderId, MailCounts, Mailbox, User } from '../types';
 
 export type SettingsTab = 'account' | 'mailboxes' | 'invites';
 
@@ -16,8 +16,16 @@ interface AppState {
   pendingInvite: string | null;
 
   // Mail
+  /** The current view (folder, mailbox, search), loaded a page at a time */
   emails: Email[];
   isLoading: boolean;
+  isLoadingMore: boolean;
+  /** Last page loaded for the current view */
+  page: number;
+  /** The server has older messages for the current view */
+  hasMore: boolean;
+  /** Sidebar numbers from the server (null in demo mode or before loading) */
+  counts: MailCounts | null;
   selectedFolder: FolderId;
   /** Show one mailbox only; null = all inboxes */
   selectedMailboxId: string | null;
@@ -37,8 +45,13 @@ interface AppState {
   signOut: () => void;
   setServerUrl: (url: string) => void;
   setPendingInvite: (code: string | null) => void;
-  setEmails: (emails: Email[]) => void;
+  setEmails: (emails: Email[], paging?: { page: number; hasMore: boolean }) => void;
+  appendEmails: (emails: Email[], paging: { page: number; hasMore: boolean }) => void;
+  /** Adds new messages and updates changed ones, keeping what is already loaded */
+  mergeEmails: (emails: Email[]) => void;
   setLoading: (loading: boolean) => void;
+  setLoadingMore: (loading: boolean) => void;
+  setCounts: (counts: MailCounts | null) => void;
   patchEmail: (id: string, changes: Partial<Email>) => void;
   removeEmail: (id: string) => void;
   addEmail: (email: Email) => void;
@@ -63,6 +76,9 @@ const signedOut = {
   mailboxes: [],
   isDemo: false,
   emails: [],
+  page: 1,
+  hasMore: false,
+  counts: null,
   selectedEmailId: null,
   selectedFolder: 'inbox' as FolderId,
   selectedMailboxId: null,
@@ -79,6 +95,7 @@ export const useAppStore = create<AppState>()(
       pendingInvite: null,
 
       isLoading: false,
+      isLoadingMore: false,
       darkMode: !!prefersDark,
       mobileNavOpen: false,
 
@@ -95,8 +112,26 @@ export const useAppStore = create<AppState>()(
       setServerUrl: (serverUrl) => set({ serverUrl }),
       setPendingInvite: (pendingInvite) => set({ pendingInvite }),
 
-      setEmails: (emails) => set({ emails }),
+      setEmails: (emails, paging = { page: 1, hasMore: false }) => set({ emails, ...paging }),
+      appendEmails: (more, paging) =>
+        set((state) => {
+          const known = new Set(state.emails.map((e) => e.id));
+          return { emails: [...state.emails, ...more.filter((e) => !known.has(e.id))], ...paging };
+        }),
+      mergeEmails: (fresh) =>
+        set((state) => {
+          const byId = new Map(fresh.map((e) => [e.id, e]));
+          const known = new Set(state.emails.map((e) => e.id));
+          return {
+            emails: [
+              ...fresh.filter((e) => !known.has(e.id)),
+              ...state.emails.map((e) => byId.get(e.id) || e),
+            ],
+          };
+        }),
       setLoading: (isLoading) => set({ isLoading }),
+      setLoadingMore: (isLoadingMore) => set({ isLoadingMore }),
+      setCounts: (counts) => set({ counts }),
       patchEmail: (id, changes) =>
         set((state) => ({
           emails: state.emails.map((e) => (e.id === id ? { ...e, ...changes } : e)),
@@ -153,7 +188,8 @@ export function selectVisibleEmails(
         e.subject.toLowerCase().includes(q) ||
         e.from.toLowerCase().includes(q) ||
         (e.fromName || '').toLowerCase().includes(q) ||
-        e.preview.toLowerCase().includes(q)
+        e.preview.toLowerCase().includes(q) ||
+        (e.body || '').toLowerCase().includes(q)
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }

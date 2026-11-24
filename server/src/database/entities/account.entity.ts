@@ -65,6 +65,17 @@ export class Account {
   @Column({ default: false })
   connected: boolean;
 
+  /** Per-folder IMAP sync progress (JSON): UID validity and the UID range already fetched */
+  @Column({ type: 'text', nullable: true })
+  syncState: string | null;
+
+  @Column({ type: 'datetime', nullable: true })
+  lastSyncAt: Date | null;
+
+  /** Why the last sync failed, shown to the user; null when it worked */
+  @Column({ type: 'text', nullable: true })
+  syncError: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

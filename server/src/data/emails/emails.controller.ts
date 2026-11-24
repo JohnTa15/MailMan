@@ -39,6 +39,13 @@ export class EmailController {
     });
   }
 
+  /** Sidebar numbers: unread inbox (also per mailbox), starred, important, drafts, spam */
+  @Get('counts')
+  async counts(@CurrentUser() userId: string) {
+    const mine = (await this.accountService.findByUser(userId)).map((a) => a.id);
+    return this.emailService.counts(mine);
+  }
+
   @Get(':id')
   async findOne(@CurrentUser() userId: string, @Param('id') id: string): Promise<Email> {
     return this.owned(userId, id);

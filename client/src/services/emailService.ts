@@ -1,5 +1,15 @@
 import api from '../lib/api';
-import { Email } from '../types';
+import { Email, MailCounts } from '../types';
+
+/** Messages per page of the list */
+export const PAGE_SIZE = 100;
+
+export interface EmailQuery {
+  folder: string;
+  accountId?: string | null;
+  search?: string;
+  page?: number;
+}
 
 type ServerEmail = Omit<Email, 'labels' | 'attachments' | 'preview'> & {
   labels: string[] | null;
@@ -17,9 +27,17 @@ function normalize(email: ServerEmail): Email {
 }
 
 export const emailService = {
-  async getEmails() {
-    const response = await api.get<ServerEmail[]>('/emails', { params: { limit: 500 } });
-    return response.data.map(normalize);
+  /** One page of a folder (newest first); `hasMore` when a full page came back. */
+  async getEmails({ folder, accountId, search, page = 1 }: EmailQuery) {
+    const response = await api.get<ServerEmail[]>('/emails', {
+      params: { folder, accountId: accountId || undefined, search: search?.trim() || undefined, page, limit: PAGE_SIZE },
+    });
+    return { emails: response.data.map(normalize), hasMore: response.data.length === PAGE_SIZE };
+  },
+
+  async counts() {
+    const response = await api.get<MailCounts>('/emails/counts');
+    return response.data;
   },
 
   async updateEmail(id: string, changes: Partial<Pick<Email, 'isRead' | 'isStarred' | 'isImportant' | 'folder'>>) {

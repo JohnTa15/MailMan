@@ -28,7 +28,7 @@ export const EmailView: FC<EmailViewProps> = ({ email, onBack }) => {
   const darkMode = useAppStore((s) => s.darkMode);
   const openCompose = useAppStore((s) => s.openCompose);
   const { toggleStar, toggleRead, archive, restore, remove } = useMail();
-  const inArchive = email.folder === 'archive' || email.folder === 'trash';
+  const inArchive = email.folder === 'archive' || email.folder === 'trash' || email.folder === 'spam';
 
   const reply = () =>
     openCompose({

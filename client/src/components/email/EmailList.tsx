@@ -1,4 +1,4 @@
-import { FC, useMemo } from 'react';
+import { FC, useEffect, useMemo, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Inbox, Menu, RefreshCw, Search, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
@@ -23,6 +23,7 @@ const EMPTY_COPY: Record<string, { title: string; text: string }> = {
   sent: { title: 'Nothing sent yet', text: 'Messages you send will appear here.' },
   drafts: { title: 'No drafts', text: 'Drafts you save will appear here.' },
   archive: { title: 'Archive is empty', text: 'Archive messages to tidy your inbox.' },
+  spam: { title: 'No spam', text: 'Junk mail your provider catches lands here.' },
   trash: { title: 'Trash is empty', text: 'Deleted messages land here first.' },
 };
 
@@ -39,13 +40,38 @@ export const EmailList: FC<EmailListProps> = ({ onSelect, className }) => {
   const selectedEmailId = useAppStore((s) => s.selectedEmailId);
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
   const setMobileNavOpen = useAppStore((s) => s.setMobileNavOpen);
-  const { refresh } = useMail();
+  const { refresh, loadMore } = useMail();
+  const hasMore = useAppStore((s) => s.hasMore);
+  const isLoadingMore = useAppStore((s) => s.isLoadingMore);
+  const counts = useAppStore((s) => s.counts);
+  const syncing = useAppStore((s) =>
+    s.mailboxes.some((m) => m.syncComplete === false && (!s.selectedMailboxId || m.id === s.selectedMailboxId))
+  );
+  const sentinel = useRef<HTMLDivElement>(null);
 
   const emails = useMemo(
     () => selectVisibleEmails({ emails: all, selectedFolder, searchQuery, selectedMailboxId }),
     [all, selectedFolder, searchQuery, selectedMailboxId]
   );
-  const unread = emails.filter((e) => !e.isRead).length;
+  // Older pages may not be loaded yet, so the server knows the real unread count
+  const serverUnread =
+    counts && selectedFolder === 'inbox' && !searchQuery
+      ? selectedMailboxId
+        ? counts.byMailbox[selectedMailboxId] ?? 0
+        : counts.inbox
+      : undefined;
+  const unread = serverUnread ?? emails.filter((e) => !e.isRead).length;
+
+  // Load the next page as the end of the list scrolls into view
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el || !hasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) void loadMore();
+    }, { rootMargin: '600px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore, emails.length]);
   const folder = FOLDERS.find((f) => f.id === selectedFolder);
   const empty = searchQuery
     ? { title: 'No matches', text: `Nothing found for “${searchQuery}”.` }
@@ -72,8 +98,10 @@ export const EmailList: FC<EmailListProps> = ({ onSelect, className }) => {
               </motion.h1>
             </AnimatePresence>
             <p className="text-xs font-medium text-ink-500 dark:text-ink-400">
-              {emails.length} message{emails.length === 1 ? '' : 's'}
+              {emails.length}
+              {hasMore ? '+' : ''} message{emails.length === 1 ? '' : 's'}
               {unread > 0 && <span className="text-primary-600 dark:text-primary-300"> · {unread} unread</span>}
+              {syncing && <span> · downloading older mail…</span>}
             </p>
           </div>
           <IconButton label="Refresh" onClick={() => refresh({ sync: true })} disabled={isLoading}>
@@ -140,6 +168,19 @@ export const EmailList: FC<EmailListProps> = ({ onSelect, className }) => {
               />
             ))}
           </AnimatePresence>
+        )}
+        {emails.length > 0 && (hasMore || isLoadingMore) && (
+          <div ref={sentinel} className="flex justify-center py-6">
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              disabled={isLoadingMore}
+              className="flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-ink-500 transition-colors hover:bg-ink-100 hover:text-ink-800 dark:text-ink-400 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isLoadingMore && 'animate-spin')} />
+              {isLoadingMore ? 'Loading older messages…' : 'Load older messages'}
+            </button>
+          </div>
         )}
       </div>
     </section>

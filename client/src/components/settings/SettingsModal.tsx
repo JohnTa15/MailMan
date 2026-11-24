@@ -21,6 +21,14 @@ const TABS: { id: SettingsTab; label: string; icon: typeof UserIcon; adminOnly?:
   { id: 'invites', label: 'Invites', icon: Send, adminOnly: true },
 ];
 
+/** "Synced 2 min ago", or that older mail is still on its way. */
+function syncStatus(m: Mailbox): string {
+  if (!m.lastSyncAt) return 'Waiting for first sync';
+  const minutes = Math.round((Date.now() - new Date(m.lastSyncAt).getTime()) / 60000);
+  const when = minutes < 1 ? 'just now' : minutes < 60 ? `${minutes} min ago` : new Date(m.lastSyncAt).toLocaleString();
+  return m.syncComplete === false ? `Downloading older mail (synced ${when})` : `Synced ${when}`;
+}
+
 export const SettingsModal: FC<{ tab: SettingsTab }> = ({ tab }) => {
   const user = useAppStore((s) => s.user);
   const openSettings = useAppStore((s) => s.openSettings);
@@ -224,7 +232,14 @@ const MailboxesTab: FC = () => {
                   <p className="truncate font-medium">{m.email}</p>
                   <p className="text-xs text-ink-500 dark:text-ink-400">
                     {m.authType === 'oauth2' ? 'Signed in with ' + (m.type === 'gmail' ? 'Google' : 'Microsoft') : 'Password'}
+                    {' · '}
+                    {syncStatus(m)}
                   </p>
+                  {m.syncError && (
+                    <p className="mt-0.5 line-clamp-2 text-xs text-rose-600 dark:text-rose-400" title={m.syncError}>
+                      {m.syncError}
+                    </p>
+                  )}
                 </div>
                 <IconButton label={`Remove ${m.email}`} tone="danger" onClick={() => remove(m)} disabled={removing === m.id}>
                   <Trash2 className="h-4 w-4" />

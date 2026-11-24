@@ -22,7 +22,7 @@ const stop = (fn: () => void) => (e: MouseEvent) => {
 export const EmailRow = forwardRef<HTMLDivElement, EmailRowProps>(({ email, index, selected, onSelect }, ref) => {
   const { toggleStar, toggleRead, archive, restore, remove } = useMail();
   const unread = !email.isRead;
-  const inArchive = email.folder === 'archive' || email.folder === 'trash';
+  const inArchive = email.folder === 'archive' || email.folder === 'trash' || email.folder === 'spam';
 
   return (
     <motion.div

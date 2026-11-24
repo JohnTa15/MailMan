@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from 'react';
+import { FC, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Menu, MailOpen, PenSquare } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
@@ -73,15 +73,39 @@ export const MainLayout: FC = () => {
   const settings = useAppStore((s) => s.settings);
   const isDemo = useAppStore((s) => s.isDemo);
   const hasMailboxes = useAppStore((s) => s.mailboxes.length > 0);
-  const { refresh, loadSession, markRead } = useMail();
+  const { refresh, poll, loadSession, markRead } = useMail();
+  const selectedFolder = useAppStore((s) => s.selectedFolder);
+  const selectedMailboxId = useAppStore((s) => s.selectedMailboxId);
+  const searchQuery = useAppStore((s) => s.searchQuery);
+  const [search, setSearch] = useState(searchQuery.trim());
 
   const selected = useMemo(() => emails.find((e) => e.id === selectedEmailId) || null, [emails, selectedEmailId]);
   // Tailwind's lg breakpoint: one reader per layout, so each message renders once
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   useEffect(() => {
-    loadSession().then(() => refresh());
-  }, [loadSession, refresh]);
+    void loadSession();
+  }, [loadSession]);
+
+  // Search on the server once typing pauses
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchQuery.trim()), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Each folder, mailbox and search loads its own newest page
+  useEffect(() => {
+    void refresh();
+  }, [refresh, selectedFolder, selectedMailboxId, search]);
+
+  // The server syncs in the background; pick up what it finds
+  useEffect(() => {
+    if (isDemo) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === 'visible') void poll();
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [isDemo, poll]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

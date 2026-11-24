@@ -29,11 +29,24 @@ export interface PasswordMailboxDto {
 
 export type PublicMailbox = Pick<
   Account,
-  'id' | 'email' | 'displayName' | 'type' | 'authType' | 'connected' | 'imapHost' | 'smtpHost' | 'createdAt'
->;
+  'id' | 'email' | 'displayName' | 'type' | 'authType' | 'connected' | 'imapHost' | 'smtpHost' | 'createdAt' | 'lastSyncAt' | 'syncError'
+> & { syncComplete: boolean };
+
+/** Whether every folder has been fetched back to its first message. */
+function syncComplete(a: Account): boolean {
+  try {
+    const folders = Object.values(JSON.parse(a.syncState || '{}')) as { complete?: boolean }[];
+    return folders.length > 0 && folders.every((f) => f.complete);
+  } catch {
+    return false;
+  }
+}
 
 export function toPublicMailbox(a: Account): PublicMailbox {
   return {
+    lastSyncAt: a.lastSyncAt,
+    syncError: a.syncError,
+    syncComplete: syncComplete(a),
     id: a.id,
     email: a.email,
     displayName: a.displayName,
@@ -197,7 +210,8 @@ export class MailboxesService {
     const errors: { mailbox: string; message: string }[] = [];
     for (const mailbox of mailboxes) {
       try {
-        added += await this.imapSyncService.syncAccount(mailbox.id);
+        // Quick: new mail only; the background scheduler does the backfill
+        added += (await this.imapSyncService.syncAccount(mailbox.id, { newOnly: true })).added;
       } catch (err) {
         errors.push({ mailbox: mailbox.email, message: err instanceof Error ? err.message : String(err) });
       }

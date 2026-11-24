@@ -18,6 +18,7 @@ import {
   IconDrafts,
   IconArchive,
   IconTrash,
+  IconSpam,
   IconCompose,
 } from '../ui/MailIcons';
 
@@ -28,6 +29,7 @@ export const FOLDERS: { id: FolderId; label: string; icon: FC<{ className?: stri
   { id: 'sent', label: 'Sent', icon: IconSend },
   { id: 'drafts', label: 'Drafts', icon: IconDrafts },
   { id: 'archive', label: 'Archive', icon: IconArchive },
+  { id: 'spam', label: 'Spam', icon: IconSpam },
   { id: 'trash', label: 'Trash', icon: IconTrash },
 ];
 
@@ -43,21 +45,31 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
   const selectFolder = useAppStore((s) => s.selectFolder);
   const openCompose = useAppStore((s) => s.openCompose);
 
-  const unreadByMailbox = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const e of emails) if (!e.isRead && e.folder === 'inbox') map.set(e.accountId, (map.get(e.accountId) || 0) + 1);
-    return map;
-  }, [emails]);
+  const serverCounts = useAppStore((s) => s.counts);
 
-  const counts = useMemo(() => {
+  // The server counts every message; the demo only has what is loaded
+  const { counts, unreadByMailbox } = useMemo(() => {
+    if (serverCounts) {
+      const { byMailbox, ...folders } = serverCounts;
+      return {
+        counts: folders as Partial<Record<FolderId, number>>,
+        unreadByMailbox: new Map(Object.entries(byMailbox)),
+      };
+    }
+    const byMailbox = new Map<string, number>();
+    for (const e of emails) if (!e.isRead && e.folder === 'inbox') byMailbox.set(e.accountId, (byMailbox.get(e.accountId) || 0) + 1);
     const unread = (f: (e: (typeof emails)[number]) => boolean) => emails.filter((e) => !e.isRead && f(e)).length;
     return {
-      inbox: unread((e) => e.folder === 'inbox'),
-      starred: emails.filter((e) => e.isStarred && e.folder !== 'trash').length,
-      important: unread((e) => e.isImportant && e.folder !== 'trash'),
-      drafts: emails.filter((e) => e.folder === 'drafts').length,
-    } as Partial<Record<FolderId, number>>;
-  }, [emails]);
+      counts: {
+        inbox: unread((e) => e.folder === 'inbox'),
+        starred: emails.filter((e) => e.isStarred && e.folder !== 'trash').length,
+        important: unread((e) => e.isImportant && e.folder !== 'trash'),
+        drafts: emails.filter((e) => e.folder === 'drafts').length,
+        spam: unread((e) => e.folder === 'spam'),
+      } as Partial<Record<FolderId, number>>,
+      unreadByMailbox: byMailbox,
+    };
+  }, [emails, serverCounts]);
 
   return (
     <div className="flex h-full flex-col p-4">

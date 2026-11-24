@@ -48,6 +48,10 @@ export interface Mailbox {
   type: MailboxType;
   authType: 'password' | 'oauth2';
   connected: boolean;
+  lastSyncAt?: string | null;
+  syncError?: string | null;
+  /** Every older message has been downloaded */
+  syncComplete?: boolean;
 }
 
 export type OAuthProviderId = 'google' | 'microsoft';
@@ -68,7 +72,17 @@ export interface Invite {
 }
 
 /** Sidebar views; `starred` and `important` are filters across all folders. */
-export type FolderId = 'inbox' | 'starred' | 'important' | 'sent' | 'drafts' | 'archive' | 'trash';
+export type FolderId = 'inbox' | 'starred' | 'important' | 'sent' | 'drafts' | 'archive' | 'spam' | 'trash';
+
+/** Sidebar numbers from the server: unread inbox (also per mailbox), starred, important, drafts, spam */
+export interface MailCounts {
+  inbox: number;
+  starred: number;
+  important: number;
+  drafts: number;
+  spam: number;
+  byMailbox: Record<string, number>;
+}
 
 export interface ComposeDraft {
   accountId?: string;

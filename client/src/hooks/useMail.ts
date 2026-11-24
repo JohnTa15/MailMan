@@ -6,6 +6,23 @@ import { authService } from '../services/authService';
 import { apiErrorMessage } from '../lib/api';
 import { Email } from '../types';
 
+/** The view the list shows, as the server understands it */
+function currentQuery() {
+  const { selectedFolder, selectedMailboxId, searchQuery } = useAppStore.getState();
+  return { folder: selectedFolder, accountId: selectedMailboxId, search: searchQuery };
+}
+
+const sameQuery = (a: ReturnType<typeof currentQuery>, b: ReturnType<typeof currentQuery>) =>
+  a.folder === b.folder && a.accountId === b.accountId && a.search.trim() === b.search.trim();
+
+async function refreshCounts() {
+  try {
+    useAppStore.getState().setCounts(await emailService.counts());
+  } catch {
+    // The numbers are a nicety; the list still works without them
+  }
+}
+
 /**
  * Mail actions that update the UI immediately and then persist to the
  * server, rolling back if the server refuses. In demo mode they stay local.
@@ -27,11 +44,51 @@ export function useMail() {
         const { errors } = await emailService.sync();
         for (const e of errors) toast.error(`${e.mailbox}: ${e.message}`, { id: `sync-${e.mailbox}` });
       }
-      setEmails(await emailService.getEmails());
+      const query = currentQuery();
+      const { emails, hasMore } = await emailService.getEmails(query);
+      // The user may have switched folders while this was loading
+      if (sameQuery(query, currentQuery())) setEmails(emails, { page: 1, hasMore });
+      void refreshCounts();
     } catch (error) {
       toast.error(apiErrorMessage(error, 'Could not load your mail'));
     } finally {
       setLoading(false);
+    }
+  }, [isDemo]);
+
+  /** Loads the next page of older messages for the current view. */
+  const loadMore = useCallback(async () => {
+    const { hasMore, isLoadingMore, isLoading, page, appendEmails, setLoadingMore } = useAppStore.getState();
+    if (isDemo || !hasMore || isLoadingMore || isLoading) return;
+    setLoadingMore(true);
+    try {
+      const query = currentQuery();
+      const next = await emailService.getEmails({ ...query, page: page + 1 });
+      if (sameQuery(query, currentQuery())) appendEmails(next.emails, { page: page + 1, hasMore: next.hasMore });
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not load more messages'));
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [isDemo]);
+
+  /** Quietly picks up mail the server synced in the background. */
+  const poll = useCallback(async () => {
+    const { isLoading, mergeEmails, mailboxes } = useAppStore.getState();
+    if (isDemo || isLoading) return;
+    try {
+      const query = currentQuery();
+      const { emails } = await emailService.getEmails(query);
+      if (sameQuery(query, currentQuery())) mergeEmails(emails);
+      void refreshCounts();
+      // While older mail is still downloading, keep the progress current
+      if (mailboxes.some((m) => m.syncComplete === false)) {
+        const { user, mailboxes: fresh } = await authService.me();
+        useAppStore.getState().setUser(user);
+        useAppStore.getState().setMailboxes(fresh);
+      }
+    } catch {
+      // Try again next time
     }
   }, [isDemo]);
 
@@ -45,6 +102,7 @@ export function useMail() {
       if (isDemo) return;
       try {
         await emailService.updateEmail(email.id, changes);
+        void refreshCounts();
       } catch (error) {
         patchEmail(email.id, previous);
         toast.error(apiErrorMessage(error, 'Could not update the message'));
@@ -132,5 +190,5 @@ export function useMail() {
     }
   }, [isDemo]);
 
-  return { refresh, loadSession, toggleStar, toggleRead, markRead, archive, restore, remove, send };
+  return { refresh, loadMore, poll, loadSession, toggleStar, toggleRead, markRead, archive, restore, remove, send };
 }

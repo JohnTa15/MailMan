@@ -1,13 +1,23 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { Account } from './account.entity';
 
 @Entity('emails')
+// Listing a folder newest-first, and finding a synced message again
+@Index(['accountId', 'folder', 'date'])
+@Index(['accountId', 'imapFolder', 'imapUid'])
 export class Email {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
   accountId: string;
+
+  /** Where the message lives on the IMAP server (folder path + UID) */
+  @Column({ type: 'text', nullable: true })
+  imapFolder: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  imapUid: number | null;
 
   @Column({ nullable: true })
   threadId: string;
