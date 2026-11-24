@@ -18,8 +18,10 @@ services:
       - NODE_ENV=production
       - PORT=8080
       - DATABASE_PATH=/app/data/webmail.db
-      - JWT_SECRET=${JWT_SECRET:-change-me-in-production-use-a-long-random-string}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef}
+      # Required: refuse to start with guessable defaults. Put them in .env:
+      #   printf 'JWT_SECRET=%s\nENCRYPTION_KEY=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > .env
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET in .env}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in .env}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
@@ -38,7 +40,8 @@ services:
       - ./plugins:/app/plugins:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      # The image ships curl, not wget
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
