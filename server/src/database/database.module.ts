@@ -6,6 +6,8 @@ import { Folder } from './entities/folder.entity';
 import { Attachment } from './entities/attachment.entity';
 import { User } from './entities/user.entity';
 import { Invite } from './entities/invite.entity';
+import { ApiKey } from './entities/api-key.entity';
+import { AiActivity } from './entities/ai-activity.entity';
 
 @Module({
   imports: [
@@ -13,12 +15,12 @@ import { Invite } from './entities/invite.entity';
       useFactory: () => ({
         type: 'sqlite',
         database: process.env.DATABASE_PATH || 'webmail.db',
-        entities: [Account, Email, Folder, Attachment, User, Invite],
+        entities: [Account, Email, Folder, Attachment, User, Invite, ApiKey, AiActivity],
         synchronize: true,
         logging: process.env.NODE_ENV !== 'production',
       }),
     }),
-    TypeOrmModule.forFeature([Account, Email, Folder, Attachment, User, Invite]),
+    TypeOrmModule.forFeature([Account, Email, Folder, Attachment, User, Invite, ApiKey, AiActivity]),
   ],
   exports: [TypeOrmModule],
 })

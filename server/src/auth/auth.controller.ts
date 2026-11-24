@@ -19,6 +19,7 @@ import { AuthService, SignupDto } from './auth.service';
 import { OAuthFlowService, OAuthMode } from './oauth-flow.service';
 import { CurrentUser, JwtAuthGuard, userIdFromRequest } from './jwt-auth.guard';
 import { RateLimiter } from './rate-limit';
+import { publicUrl } from './public-url';
 
 // Password guessing: per address and per client
 const loginByEmail = new RateLimiter(10, 15 * 60 * 1000);
@@ -29,10 +30,6 @@ function clientIp(req: Request) {
 }
 
 /** The address people reach this server at, for OAuth redirect URIs. */
-function publicUrl(req: Request) {
-  return (process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
-}
-
 function escapeHtml(text: string) {
   return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 }

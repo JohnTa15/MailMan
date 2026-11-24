@@ -4,11 +4,12 @@ import { UsersService } from './users.service';
 import { InvitesService } from './invites.service';
 import { InvitesController } from './invites.controller';
 import { AdminGuard } from './admin.guard';
+import { IntegrationsController } from './integrations.controller';
 
 @Module({
   imports: [DatabaseModule],
   providers: [UsersService, InvitesService, AdminGuard],
-  controllers: [InvitesController],
+  controllers: [InvitesController, IntegrationsController],
   exports: [UsersService, InvitesService, AdminGuard],
 })
 export class UsersModule {}

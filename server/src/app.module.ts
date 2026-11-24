@@ -9,6 +9,7 @@ import { ProtocolsModule } from './protocols/protocols.module';
 import { PluginsModule } from './plugins/plugins.module';
 import { UsersModule } from './users/users.module';
 import { MailboxesModule } from './mailboxes/mailboxes.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { MailboxesModule } from './mailboxes/mailboxes.module';
     FoldersModule,
     ProtocolsModule,
     PluginsModule,
+    AiModule,
   ],
 })
 export class AppModule {}

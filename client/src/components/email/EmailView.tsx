@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import { motion } from 'framer-motion';
-import { Archive, ArchiveRestore, ArrowLeft, FileText, Forward, Mail, Paperclip, Reply, Star, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, Bot, FileText, Forward, Mail, Paperclip, PenLine, Reply, Star, Trash2 } from 'lucide-react';
 import { Email } from '../../types';
 import { useAppStore } from '../../store/appStore';
 import { useMail } from '../../hooks/useMail';
@@ -37,6 +37,8 @@ export const EmailView: FC<EmailViewProps> = ({ email, onBack }) => {
       subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
       body: quote(email),
     });
+  const editDraft = () =>
+    openCompose({ draftId: email.id, accountId: email.accountId, to: email.to || '', subject: email.subject, body: email.body });
   const forward = () =>
     openCompose({
       accountId: email.accountId,
@@ -89,11 +91,18 @@ export const EmailView: FC<EmailViewProps> = ({ email, onBack }) => {
           {(email.isImportant || email.labels.length > 0) && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {email.isImportant && <Badge variant="danger">Important</Badge>}
-              {email.labels.map((label) => (
-                <Badge key={label} variant="primary">
-                  {label}
-                </Badge>
-              ))}
+              {email.labels.map((label) =>
+                label === 'ai-draft' ? (
+                  <Badge key={label} variant="warning" className="gap-1 normal-case">
+                    <Bot className="h-3 w-3" />
+                    Written by AI, not sent
+                  </Badge>
+                ) : (
+                  <Badge key={label} variant="primary">
+                    {label}
+                  </Badge>
+                )
+              )}
             </div>
           )}
 
@@ -157,6 +166,12 @@ export const EmailView: FC<EmailViewProps> = ({ email, onBack }) => {
           )}
 
           <div className="mt-8 flex gap-3">
+            {email.folder === 'drafts' && (
+              <Button onClick={editDraft}>
+                <PenLine className="h-4 w-4" />
+                Edit &amp; send
+              </Button>
+            )}
             <Button variant="secondary" onClick={reply}>
               <Reply className="h-4 w-4" />
               Reply

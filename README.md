@@ -161,7 +161,41 @@ Gmail still works with an app password; Outlook/Office 365 need Microsoft.
    and `MICROSOFT_CLIENT_SECRET`. Work accounts may need IMAP and authenticated
    SMTP enabled for the mailbox by their admin.
 
-Restart the server after changing `.env` (`docker compose up -d`).
+Restart the server after changing `.env` (`docker compose up -d`). Admins can
+check the setup in **Settings → Integrations**: it shows which variables are
+missing and the exact redirect URI to register.
+
+### Syncing
+
+Mailman downloads every message of each mailbox (inbox, sent, drafts, spam,
+trash and archive), newest first, in batches of 200, and checks for new mail
+every minute (`SYNC_INTERVAL_SECONDS`, `0` turns background sync off). Large
+attachments are not downloaded.
+
+### AI assistants (MCP)
+
+Each person can let an AI assistant (Claude, Cursor, or any MCP client) work
+with their mail. In **Settings → AI access**, create a key and choose what it
+may do:
+
+| Access    | Tools                                         |
+|-----------|-----------------------------------------------|
+| Read      | `list_mailboxes`, `search_emails`, `read_email` |
+| Organize  | `mark_read`, `star`, `move_to_folder`         |
+| Drafts    | `create_draft`                                |
+
+An AI key can never send mail: drafts wait in **Drafts** (marked "Written by
+AI") until you open them, edit and send. The key works only on the MCP endpoint,
+is stored as a hash, and every call shows up under *Recent activity*.
+
+```bash
+claude mcp add --transport http mailman https://mail.example.com/api/mcp \
+  --header "Authorization: Bearer mm_your_key"
+```
+
+Other clients take the URL `https://mail.example.com/api/mcp` with the header
+`Authorization: Bearer mm_your_key`. Emails come from outside senders, so treat
+what an assistant reads in them as untrusted: give a key only the access it needs.
 
 ## API Documentation
 

@@ -1,6 +1,6 @@
 import { FC, FormEvent, useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Copy, KeyRound, LogOut, Mail, Plus, Send, Trash2, User as UserIcon, X } from 'lucide-react';
+import { Bot, Check, Copy, KeyRound, LogOut, Mail, Plug, Plus, Send, Trash2, User as UserIcon, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import { SettingsTab, useAppStore } from '../../store/appStore';
@@ -14,11 +14,16 @@ import { Button, IconButton } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { AddMailbox } from '../mailboxes/AddMailbox';
 import { GoogleLogo, MailboxTypeLogo, MicrosoftLogo } from '../mailboxes/ProviderLogos';
+import { Section } from './shared';
+import { IntegrationsTab } from './IntegrationsTab';
+import { AiTab } from './AiTab';
 
 const TABS: { id: SettingsTab; label: string; icon: typeof UserIcon; adminOnly?: boolean }[] = [
   { id: 'account', label: 'Account', icon: UserIcon },
   { id: 'mailboxes', label: 'Mailboxes', icon: Mail },
+  { id: 'ai', label: 'AI access', icon: Bot },
   { id: 'invites', label: 'Invites', icon: Send, adminOnly: true },
+  { id: 'integrations', label: 'Integrations', icon: Plug, adminOnly: true },
 ];
 
 /** "Synced 2 min ago", or that older mail is still on its way. */
@@ -78,7 +83,9 @@ export const SettingsModal: FC<{ tab: SettingsTab }> = ({ tab }) => {
             <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.16 }}>
               {tab === 'account' && <AccountTab />}
               {tab === 'mailboxes' && <MailboxesTab />}
+              {tab === 'ai' && <AiTab />}
               {tab === 'invites' && user?.role === 'admin' && <InvitesTab />}
+              {tab === 'integrations' && user?.role === 'admin' && <IntegrationsTab />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -87,13 +94,6 @@ export const SettingsModal: FC<{ tab: SettingsTab }> = ({ tab }) => {
   );
 };
 
-const Section: FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
-  <section className="mb-8">
-    <h2 className="text-base font-semibold">{title}</h2>
-    {description && <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">{description}</p>}
-    <div className="mt-4">{children}</div>
-  </section>
-);
 
 const AccountTab: FC = () => {
   const user = useAppStore((s) => s.user);

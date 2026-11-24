@@ -148,14 +148,17 @@ export function useMail() {
   );
 
   const send = useCallback(
-    async (draft: { accountId?: string; to: string; subject: string; body: string; attachments: File[] }) => {
+    async (draft: { draftId?: string; accountId?: string; to: string; subject: string; body: string; attachments: File[] }) => {
       const { mailboxes, addEmail } = useAppStore.getState();
       const from = mailboxes.find((m) => m.id === draft.accountId) || mailboxes[0];
       if (!isDemo) {
         await emailService.sendEmail(draft);
+        // The draft has become a sent message
+        if (draft.draftId) await emailService.deleteEmail(draft.draftId).catch(() => undefined);
       } else {
         await new Promise((r) => setTimeout(r, 900));
       }
+      if (draft.draftId) useAppStore.getState().removeEmail(draft.draftId);
       addEmail({
         id: `local-${Date.now()}`,
         accountId: from?.id || '',

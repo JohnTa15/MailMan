@@ -47,7 +47,7 @@ export const ComposeModal: FC<{ draft: ComposeDraft }> = ({ draft }) => {
 
     setIsSending(true);
     try {
-      await send({ accountId: fromId || undefined, to: recipients.join(', '), subject, body, attachments });
+      await send({ draftId: draft.draftId, accountId: fromId || undefined, to: recipients.join(', '), subject, body, attachments });
       setSent(true);
       toast.success('Message sent', { icon: '🚀' });
       setTimeout(closeCompose, 650);

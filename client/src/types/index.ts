@@ -85,6 +85,8 @@ export interface MailCounts {
 }
 
 export interface ComposeDraft {
+  /** Editing a saved draft: it is removed once sent */
+  draftId?: string;
   accountId?: string;
   to?: string;
   subject?: string;

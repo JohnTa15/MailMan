@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ComposeDraft, Email, FolderId, MailCounts, Mailbox, User } from '../types';
 
-export type SettingsTab = 'account' | 'mailboxes' | 'invites';
+export type SettingsTab = 'account' | 'mailboxes' | 'ai' | 'invites' | 'integrations';
 
 interface AppState {
   // Session

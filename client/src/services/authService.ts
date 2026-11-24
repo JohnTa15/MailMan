@@ -70,3 +70,64 @@ export const inviteService = {
     await api.delete(`/invites/${id}`);
   },
 };
+
+export interface ProviderIntegration {
+  id: OAuthProviderId;
+  label: string;
+  configured: boolean;
+  clientIdVar: string;
+  clientSecretVar: string;
+  clientIdSet: boolean;
+  clientSecretSet: boolean;
+  redirectUri: string;
+  tenant?: string;
+}
+
+export interface Integrations {
+  publicUrl: string;
+  publicUrlSet: boolean;
+  publicUrlSecure: boolean;
+  providers: ProviderIntegration[];
+}
+
+export const adminService = {
+  async integrations() {
+    return (await api.get<Integrations>('/admin/integrations')).data;
+  },
+};
+
+export type AiScope = 'read' | 'organize' | 'drafts';
+
+export interface AiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: AiScope[];
+  lastUsedAt: string | null;
+  createdAt: string;
+}
+
+export interface AiActivity {
+  id: string;
+  keyName: string;
+  tool: string;
+  summary: string;
+  ok: boolean;
+  createdAt: string;
+}
+
+export const aiService = {
+  async keys() {
+    return (await api.get<AiKey[]>('/ai/keys')).data;
+  },
+  /** The returned `key` is shown once; the server keeps only a hash. */
+  async createKey(name: string, scopes: AiScope[]) {
+    return (await api.post<AiKey & { key: string }>('/ai/keys', { name, scopes })).data;
+  },
+  async revokeKey(id: string) {
+    await api.delete(`/ai/keys/${id}`);
+  },
+  async activity() {
+    return (await api.get<AiActivity[]>('/ai/activity', { params: { limit: 30 } })).data;
+  },
+};

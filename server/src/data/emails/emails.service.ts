@@ -22,8 +22,9 @@ export class EmailService {
     page?: number;
     limit?: number;
     search?: string;
+    unreadOnly?: boolean;
   }): Promise<Email[]> {
-    const { accountId, accountIds, folder, page = 1, limit = 50, search } = params;
+    const { accountId, accountIds, folder, page = 1, limit = 50, search, unreadOnly } = params;
     if (accountIds && accountIds.length === 0) return [];
 
     const base: FindOptionsWhere<Email> = {};
@@ -38,6 +39,7 @@ export class EmailService {
     } else if (folder) {
       base.folder = folder;
     }
+    if (unreadOnly) base.isRead = false;
     // An array of conditions is OR-ed together by TypeORM
     const where = search
       ? (['subject', 'from', 'fromName', 'body'] as const).map((field) => ({
