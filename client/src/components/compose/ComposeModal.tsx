@@ -12,10 +12,13 @@ import { Button, IconButton } from '../ui/Button';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const ComposeModal: FC<{ draft: ComposeDraft }> = ({ draft }) => {
-  const account = useAppStore((s) => s.account);
+  const mailboxes = useAppStore((s) => s.mailboxes);
+  const selectedMailboxId = useAppStore((s) => s.selectedMailboxId);
   const closeCompose = useAppStore((s) => s.closeCompose);
   const { send } = useMail();
 
+  // Replies go out from the mailbox that received the message
+  const [fromId, setFromId] = useState(draft.accountId || selectedMailboxId || mailboxes[0]?.id || '');
   const [to, setTo] = useState(draft.to || '');
   const [subject, setSubject] = useState(draft.subject || '');
   const [body, setBody] = useState(draft.body || '');
@@ -44,7 +47,7 @@ export const ComposeModal: FC<{ draft: ComposeDraft }> = ({ draft }) => {
 
     setIsSending(true);
     try {
-      await send({ to: recipients.join(', '), subject, body, attachments });
+      await send({ accountId: fromId || undefined, to: recipients.join(', '), subject, body, attachments });
       setSent(true);
       toast.success('Message sent', { icon: '🚀' });
       setTimeout(closeCompose, 650);
@@ -98,7 +101,22 @@ export const ComposeModal: FC<{ draft: ComposeDraft }> = ({ draft }) => {
         <div className="flex min-h-0 flex-1 flex-col px-5">
           <div className="flex items-center gap-3 border-b border-ink-100 dark:border-white/5">
             <span className="w-14 text-sm text-ink-400">From</span>
-            <span className="truncate py-3 text-sm text-ink-700 dark:text-ink-300">{account?.email}</span>
+            {mailboxes.length > 1 ? (
+              <select
+                aria-label="Send from"
+                value={fromId}
+                onChange={(e) => setFromId(e.target.value)}
+                className="min-w-0 flex-1 cursor-pointer truncate bg-transparent py-3 text-sm text-ink-700 outline-none dark:text-ink-300"
+              >
+                {mailboxes.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.displayName && m.displayName !== m.email ? `${m.displayName} <${m.email}>` : m.email}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="truncate py-3 text-sm text-ink-700 dark:text-ink-300">{mailboxes[0]?.email}</span>
+            )}
           </div>
           <label className="flex items-center gap-3 border-b border-ink-100 dark:border-white/5">
             <span className="w-14 text-sm text-ink-400">To</span>

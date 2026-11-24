@@ -27,19 +27,51 @@ export interface Attachment {
   url?: string;
 }
 
-export interface Account {
+/** The person signed in to Mailman. */
+export interface User {
   id: string;
   email: string;
-  displayName: string;
-  avatar?: string;
-  type: 'imap' | 'ews' | 'gmail' | 'outlook';
+  displayName: string | null;
+  role: 'admin' | 'user';
+  hasPassword: boolean;
+  google: boolean;
+  microsoft: boolean;
+}
+
+export type MailboxType = 'imap' | 'ews' | 'gmail' | 'outlook' | 'yahoo' | 'icloud';
+
+/** A connected email account; a user can have several. */
+export interface Mailbox {
+  id: string;
+  email: string;
+  displayName: string | null;
+  type: MailboxType;
+  authType: 'password' | 'oauth2';
   connected: boolean;
+}
+
+export type OAuthProviderId = 'google' | 'microsoft';
+
+export interface ServerStatus {
+  hasUsers: boolean;
+  providers: Record<OAuthProviderId, boolean>;
+}
+
+export interface Invite {
+  id: string;
+  code: string;
+  note: string | null;
+  createdAt: string;
+  expiresAt: string;
+  usedAt: string | null;
+  status: 'active' | 'used' | 'expired';
 }
 
 /** Sidebar views; `starred` and `important` are filters across all folders. */
 export type FolderId = 'inbox' | 'starred' | 'important' | 'sent' | 'drafts' | 'archive' | 'trash';
 
 export interface ComposeDraft {
+  accountId?: string;
   to?: string;
   subject?: string;
   body?: string;

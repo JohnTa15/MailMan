@@ -1,21 +1,5 @@
 import api from '../lib/api';
-import { Account, Email } from '../types';
-
-export interface LoginRequest {
-  email: string;
-  password: string;
-  imapHost?: string;
-  imapPort?: number;
-  imapSecure?: boolean;
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpSecure?: boolean;
-}
-
-export interface LoginResponse {
-  access_token: string;
-  account: Account;
-}
+import { Email } from '../types';
 
 type ServerEmail = Omit<Email, 'labels' | 'attachments' | 'preview'> & {
   labels: string[] | null;
@@ -33,11 +17,6 @@ function normalize(email: ServerEmail): Email {
 }
 
 export const emailService = {
-  async login(request: LoginRequest) {
-    const response = await api.post<LoginResponse>('/auth/login', request);
-    return response.data;
-  },
-
   async getEmails() {
     const response = await api.get<ServerEmail[]>('/emails', { params: { limit: 500 } });
     return response.data.map(normalize);
@@ -51,13 +30,19 @@ export const emailService = {
     await api.delete(`/emails/${id}`);
   },
 
+  /** Fetches new mail on the server; reports mailboxes that failed. */
   async sync() {
-    const response = await api.post<{ added: number }>('/mail/sync');
-    return response.data.added;
+    const response = await api.post<{ added: number; errors: { mailbox: string; message: string }[] }>(
+      '/mail/sync',
+      {},
+      { timeout: 120000 }
+    );
+    return response.data;
   },
 
-  async sendEmail(data: { to: string; subject: string; body: string; attachments: File[] }) {
+  async sendEmail(data: { accountId?: string; to: string; subject: string; body: string; attachments: File[] }) {
     const form = new FormData();
+    if (data.accountId) form.append('accountId', data.accountId);
     form.append('to', data.to);
     form.append('subject', data.subject);
     form.append('body', data.body);

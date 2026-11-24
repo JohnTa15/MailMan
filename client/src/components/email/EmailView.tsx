@@ -32,12 +32,14 @@ export const EmailView: FC<EmailViewProps> = ({ email, onBack }) => {
 
   const reply = () =>
     openCompose({
+      accountId: email.accountId,
       to: email.from,
       subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
       body: quote(email),
     });
   const forward = () =>
     openCompose({
+      accountId: email.accountId,
       subject: email.subject.startsWith('Fwd:') ? email.subject : `Fwd: ${email.subject}`,
       body: quote(email),
     });

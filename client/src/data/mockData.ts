@@ -1,12 +1,23 @@
-import { Account, Email } from '../types';
+import { Email, Mailbox, User } from '../types';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
-export const DEMO_ACCOUNT: Account = {
+export const DEMO_USER: User = {
+  id: 'demo-user',
+  email: 'you@mailman.app',
+  displayName: 'Alex Morgan',
+  role: 'admin',
+  hasPassword: true,
+  google: false,
+  microsoft: false,
+};
+
+export const DEMO_MAILBOX: Mailbox = {
   id: 'demo',
   email: 'you@mailman.app',
   displayName: 'Alex Morgan',
   type: 'imap',
+  authType: 'password',
   connected: true,
 };
 
@@ -133,8 +144,8 @@ const seeds: Seed[] = [
 ];
 
 export const DEMO_EMAILS: Email[] = seeds.map((s) => ({
-  accountId: DEMO_ACCOUNT.id,
-  to: DEMO_ACCOUNT.email,
+  accountId: DEMO_MAILBOX.id,
+  to: DEMO_MAILBOX.email,
   labels: [],
   attachments: [],
   isImportant: false,

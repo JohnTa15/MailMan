@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAppStore } from '../store/appStore';
 import { emailService } from '../services/emailService';
+import { authService } from '../services/authService';
 import { apiErrorMessage } from '../lib/api';
 import { Email } from '../types';
 
@@ -22,7 +23,10 @@ export function useMail() {
     }
     setLoading(true);
     try {
-      if (opts.sync) await emailService.sync();
+      if (opts.sync) {
+        const { errors } = await emailService.sync();
+        for (const e of errors) toast.error(`${e.mailbox}: ${e.message}`, { id: `sync-${e.mailbox}` });
+      }
       setEmails(await emailService.getEmails());
     } catch (error) {
       toast.error(apiErrorMessage(error, 'Could not load your mail'));
@@ -86,8 +90,9 @@ export function useMail() {
   );
 
   const send = useCallback(
-    async (draft: { to: string; subject: string; body: string; attachments: File[] }) => {
-      const { account, addEmail } = useAppStore.getState();
+    async (draft: { accountId?: string; to: string; subject: string; body: string; attachments: File[] }) => {
+      const { mailboxes, addEmail } = useAppStore.getState();
+      const from = mailboxes.find((m) => m.id === draft.accountId) || mailboxes[0];
       if (!isDemo) {
         await emailService.sendEmail(draft);
       } else {
@@ -95,10 +100,10 @@ export function useMail() {
       }
       addEmail({
         id: `local-${Date.now()}`,
-        accountId: account?.id || '',
+        accountId: from?.id || '',
         subject: draft.subject || '(No Subject)',
-        from: account?.email || '',
-        fromName: account?.displayName,
+        from: from?.email || '',
+        fromName: from?.displayName || undefined,
         to: draft.to,
         date: new Date().toISOString(),
         preview: draft.body.replace(/\s+/g, ' ').trim().slice(0, 200),
@@ -114,5 +119,18 @@ export function useMail() {
     [isDemo]
   );
 
-  return { refresh, toggleStar, toggleRead, markRead, archive, restore, remove, send };
+  /** Refreshes the signed-in user and their mailboxes. */
+  const loadSession = useCallback(async () => {
+    if (isDemo) return;
+    try {
+      const { user, mailboxes } = await authService.me();
+      const { setUser, setMailboxes } = useAppStore.getState();
+      setUser(user);
+      setMailboxes(mailboxes);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, 'Could not load your account'));
+    }
+  }, [isDemo]);
+
+  return { refresh, loadSession, toggleStar, toggleRead, markRead, archive, restore, remove, send };
 }

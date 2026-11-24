@@ -27,8 +27,13 @@ const EMPTY_COPY: Record<string, { title: string; text: string }> = {
 };
 
 export const EmailList: FC<EmailListProps> = ({ onSelect, className }) => {
-  const { emails: all, selectedFolder, searchQuery } = useAppStore(
-    useShallow((s) => ({ emails: s.emails, selectedFolder: s.selectedFolder, searchQuery: s.searchQuery }))
+  const { emails: all, selectedFolder, searchQuery, selectedMailboxId } = useAppStore(
+    useShallow((s) => ({
+      emails: s.emails,
+      selectedFolder: s.selectedFolder,
+      searchQuery: s.searchQuery,
+      selectedMailboxId: s.selectedMailboxId,
+    }))
   );
   const isLoading = useAppStore((s) => s.isLoading);
   const selectedEmailId = useAppStore((s) => s.selectedEmailId);
@@ -37,8 +42,8 @@ export const EmailList: FC<EmailListProps> = ({ onSelect, className }) => {
   const { refresh } = useMail();
 
   const emails = useMemo(
-    () => selectVisibleEmails({ emails: all, selectedFolder, searchQuery }),
-    [all, selectedFolder, searchQuery]
+    () => selectVisibleEmails({ emails: all, selectedFolder, searchQuery, selectedMailboxId }),
+    [all, selectedFolder, searchQuery, selectedMailboxId]
   );
   const unread = emails.filter((e) => !e.isRead).length;
   const folder = FOLDERS.find((f) => f.id === selectedFolder);

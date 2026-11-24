@@ -3,7 +3,20 @@ import ReactDOM from 'react-dom/client';
 import { Toaster } from 'react-hot-toast';
 import '@fontsource-variable/inter';
 import App from './App';
+import { useAppStore } from './store/appStore';
 import './index.css';
+
+// Invite links look like /?invite=CODE: keep the code for the sign-up form
+// before the first render, and drop it from the address bar
+{
+  const url = new URL(window.location.href);
+  const invite = url.searchParams.get('invite');
+  if (invite) {
+    useAppStore.getState().setPendingInvite(invite);
+    url.searchParams.delete('invite');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
