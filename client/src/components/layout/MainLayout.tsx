@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { MailOpen, PenSquare } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { useMail } from '../../hooks/useMail';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Email } from '../../types';
 import { EmailList } from '../email/EmailList';
 import { EmailView } from '../email/EmailView';
@@ -38,6 +39,8 @@ export const MainLayout: FC = () => {
   const { refresh, markRead } = useMail();
 
   const selected = useMemo(() => emails.find((e) => e.id === selectedEmailId) || null, [emails, selectedEmailId]);
+  // Tailwind's lg breakpoint: one reader per layout, so each message renders once
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   useEffect(() => {
     refresh();
@@ -76,15 +79,17 @@ export const MainLayout: FC = () => {
         />
 
         {/* Desktop reader */}
-        <div className="hidden min-w-0 flex-1 bg-white/60 dark:bg-ink-900/40 lg:block">
-          <AnimatePresence mode="wait">
-            {selected ? <EmailView key={selected.id} email={selected} onBack={() => selectEmail(null)} /> : <ReaderEmpty key="empty" />}
-          </AnimatePresence>
-        </div>
+        {isDesktop && (
+          <div className="min-w-0 flex-1 bg-white/60 dark:bg-ink-900/40">
+            <AnimatePresence mode="wait">
+              {selected ? <EmailView key={selected.id} email={selected} onBack={() => selectEmail(null)} /> : <ReaderEmpty key="empty" />}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Mobile reader slides over the list */}
         <AnimatePresence>
-          {selected && (
+          {selected && !isDesktop && (
             <motion.div
               key="mobile-reader"
               initial={{ x: '100%' }}
