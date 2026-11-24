@@ -10,21 +10,28 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { EmailService } from './emails.service';
+import { AccountService } from '../accounts/accounts.service';
 import { Email } from '../../database/entities/email.entity';
-import { CurrentAccount, JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { CurrentUser, JwtAuthGuard } from '../../auth/jwt-auth.guard';
 
 @Controller('emails')
 @UseGuards(JwtAuthGuard)
 export class EmailController {
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly accountService: AccountService,
+  ) {}
 
+  /** Emails across all of the user's mailboxes, or one of them with ?accountId= */
   @Get()
   async findAll(
-    @CurrentAccount() accountId: string,
-    @Query() query: { folder?: string; page?: string; limit?: string; search?: string },
+    @CurrentUser() userId: string,
+    @Query() query: { accountId?: string; folder?: string; page?: string; limit?: string; search?: string },
   ): Promise<Email[]> {
+    const mine = (await this.accountService.findByUser(userId)).map((a) => a.id);
+    const accountIds = query.accountId ? mine.filter((id) => id === query.accountId) : mine;
     return this.emailService.findAll({
-      accountId,
+      accountIds,
       folder: query.folder,
       search: query.search,
       page: Math.max(1, Number(query.page) || 1),
@@ -33,17 +40,17 @@ export class EmailController {
   }
 
   @Get(':id')
-  async findOne(@CurrentAccount() accountId: string, @Param('id') id: string): Promise<Email> {
-    return this.owned(accountId, id);
+  async findOne(@CurrentUser() userId: string, @Param('id') id: string): Promise<Email> {
+    return this.owned(userId, id);
   }
 
   @Patch(':id')
   async update(
-    @CurrentAccount() accountId: string,
+    @CurrentUser() userId: string,
     @Param('id') id: string,
     @Body() body: Pick<Partial<Email>, 'isRead' | 'isStarred' | 'isImportant' | 'folder' | 'labels'>,
   ): Promise<Email | null> {
-    await this.owned(accountId, id);
+    await this.owned(userId, id);
     const { isRead, isStarred, isImportant, folder, labels } = body;
     const changes = Object.fromEntries(
       Object.entries({ isRead, isStarred, isImportant, folder, labels }).filter(
@@ -54,14 +61,15 @@ export class EmailController {
   }
 
   @Delete(':id')
-  async remove(@CurrentAccount() accountId: string, @Param('id') id: string): Promise<void> {
-    await this.owned(accountId, id);
+  async remove(@CurrentUser() userId: string, @Param('id') id: string): Promise<void> {
+    await this.owned(userId, id);
     return this.emailService.remove(id);
   }
 
-  private async owned(accountId: string, id: string): Promise<Email> {
+  private async owned(userId: string, id: string): Promise<Email> {
     const email = await this.emailService.findOne(id);
-    if (!email || email.accountId !== accountId) throw new NotFoundException();
+    const mailbox = email ? await this.accountService.findOne(email.accountId) : null;
+    if (!email || mailbox?.userId !== userId) throw new NotFoundException();
     return email;
   }
 }

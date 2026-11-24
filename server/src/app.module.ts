@@ -7,6 +7,8 @@ import { FoldersModule } from './data/folders/folders.module';
 import { SecurityModule } from './security/security.module';
 import { ProtocolsModule } from './protocols/protocols.module';
 import { PluginsModule } from './plugins/plugins.module';
+import { UsersModule } from './users/users.module';
+import { MailboxesModule } from './mailboxes/mailboxes.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { PluginsModule } from './plugins/plugins.module';
     }),
     SecurityModule,
     AuthModule,
+    UsersModule,
+    MailboxesModule,
     AccountsModule,
     EmailsModule,
     FoldersModule,

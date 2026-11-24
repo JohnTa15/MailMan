@@ -1,31 +1,26 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { OAuthFlowService } from './oauth-flow.service';
 import { AccountsModule } from '../data/accounts/accounts.module';
-import { ImapModule } from '../protocols/imap/imap.module';
-import { GoogleStrategy } from './strategies/google.strategy';
-import { FacebookStrategy } from './strategies/facebook.strategy';
-import { isOAuthConfigured } from './oauth.config';
+import { MailboxesModule } from '../mailboxes/mailboxes.module';
+import { OAuthCoreModule } from '../oauth/oauth-core.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     AccountsModule,
-    ImapModule,
-    PassportModule,
+    MailboxesModule,
+    OAuthCoreModule,
+    UsersModule,
     JwtModule.register({
       global: true,
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  providers: [
-    AuthService,
-    // Passport strategies throw without credentials, so register only configured ones
-    ...(isOAuthConfigured('google') ? [GoogleStrategy] : []),
-    ...(isOAuthConfigured('facebook') ? [FacebookStrategy] : []),
-  ],
+  providers: [AuthService, OAuthFlowService],
   controllers: [AuthController],
   exports: [AuthService],
 })

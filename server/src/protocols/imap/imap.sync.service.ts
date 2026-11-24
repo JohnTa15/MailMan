@@ -4,7 +4,7 @@ import { simpleParser } from 'mailparser';
 import { EmailService } from '../../data/emails/emails.service';
 import { AccountService } from '../../data/accounts/accounts.service';
 import { Email } from '../../database/entities/email.entity';
-import { decryptSecret } from '../../crypto/secret-box';
+import { MailCredentialsService } from '../../oauth/mail-credentials.service';
 
 const SYNC_LIMIT = 100;
 
@@ -13,7 +13,9 @@ export interface ImapCredentials {
   port: number;
   secure: boolean;
   user: string;
-  pass: string;
+  /** Either a password or an OAuth access token (XOAUTH2) */
+  pass?: string;
+  accessToken?: string;
 }
 
 @Injectable()
@@ -23,6 +25,7 @@ export class ImapSyncService {
   constructor(
     private readonly emailService: EmailService,
     private readonly accountService: AccountService,
+    private readonly mailCredentials: MailCredentialsService,
   ) {}
 
   /** Returns true when the server accepts the login. */
@@ -31,7 +34,9 @@ export class ImapSyncService {
       host: creds.host,
       port: creds.port,
       secure: creds.secure,
-      auth: { user: creds.user, pass: creds.pass },
+      auth: creds.accessToken
+        ? { user: creds.user, accessToken: creds.accessToken }
+        : { user: creds.user, pass: creds.pass },
       logger: false,
     });
     try {
@@ -52,10 +57,7 @@ export class ImapSyncService {
       host: account.imapHost,
       port: account.imapPort || 993,
       secure: account.imapSecure,
-      auth: {
-        user: account.email,
-        pass: decryptSecret(account.encryptedPassword),
-      },
+      auth: await this.mailCredentials.imapAuth(account),
       logger: false,
     });
 

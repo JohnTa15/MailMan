@@ -1,9 +1,16 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
+export type MailboxType = 'imap' | 'ews' | 'gmail' | 'outlook' | 'yahoo' | 'icloud';
+
+/** A connected mailbox (IMAP/SMTP), owned by a user. */
 @Entity('accounts')
 export class Account {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Index()
+  @Column({ type: 'text', nullable: true })
+  userId: string | null;
 
   @Column({ unique: true })
   email: string;
@@ -12,7 +19,14 @@ export class Account {
   displayName: string;
 
   @Column({ default: 'imap' })
-  type: 'imap' | 'ews' | 'gmail' | 'outlook' | 'google' | 'facebook';
+  type: MailboxType;
+
+  /** 'password': stored IMAP/app password; 'oauth2': Google/Microsoft tokens */
+  @Column({ type: 'text', default: 'password' })
+  authType: 'password' | 'oauth2';
+
+  @Column({ type: 'datetime', nullable: true })
+  tokenExpiresAt: Date | null;
 
   // IMAP settings
   @Column({ nullable: true })
@@ -41,6 +55,7 @@ export class Account {
   @Column('text', { nullable: true })
   refreshToken: string;
 
+  /** The provider's id for this mailbox's account */
   @Column('text', { nullable: true })
   oauthProviderId: string;
 

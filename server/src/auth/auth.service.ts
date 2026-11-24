@@ -1,188 +1,190 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
-  Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { timingSafeEqual } from 'crypto';
+import { User } from '../database/entities/user.entity';
+import { UsersService, toPublicUser } from '../users/users.service';
+import { InvitesService } from '../users/invites.service';
 import { AccountService } from '../data/accounts/accounts.service';
-import { Account } from '../database/entities/account.entity';
-import { encryptSecret, decryptSecret } from '../crypto/secret-box';
-import { discoverProvider } from '../protocols/providers';
-import { ImapSyncService } from '../protocols/imap/imap.sync.service';
+import { MailboxesService, toPublicMailbox } from '../mailboxes/mailboxes.service';
+import { hashPassword, verifyPassword } from '../crypto/password';
+import { OAuthIdentity } from '../oauth/oauth-client.service';
+import { OAuthProvider, isOAuthConfigured } from '../oauth/providers';
+import { AccessTokenPayload } from './jwt-auth.guard';
 
-export interface LoginDto {
+export interface SignupDto {
   email: string;
   password: string;
   displayName?: string;
-  imapHost?: string;
-  imapPort?: number;
-  imapSecure?: boolean;
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpSecure?: boolean;
+  invite?: string;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function checkPassword(password: string | undefined) {
+  if (!password || password.length < 8) throw new BadRequestException('Use a password of at least 8 characters');
+  if (password.length > 200) throw new BadRequestException('That password is too long');
 }
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  // Compared against when the email is unknown, so both cases take as long
+  private dummyHash: Promise<string> | null = null;
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly accountService: AccountService,
-    private readonly imapSyncService: ImapSyncService,
+    private readonly users: UsersService,
+    private readonly invites: InvitesService,
+    private readonly accounts: AccountService,
+    private readonly mailboxes: MailboxesService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<Account | null> {
-    const account = await this.accountService.findByEmail(email);
-    if (!account || !account.encryptedPassword || !password) {
-      return null;
-    }
+  /** Public: what the sign-in screen should offer. */
+  async status() {
+    return {
+      hasUsers: (await this.users.count()) > 0,
+      providers: { google: isOAuthConfigured('google'), microsoft: isOAuthConfigured('microsoft') },
+    };
+  }
 
-    let stored: Buffer;
+  issue(user: User) {
+    const payload: AccessTokenPayload = { sub: user.id, email: user.email, typ: 'access' };
+    return { access_token: this.jwtService.sign(payload), user: toPublicUser(user) };
+  }
+
+  /** The first person becomes the admin; everyone after needs an invite. */
+  async signup(dto: SignupDto) {
+    const email = dto.email?.trim().toLowerCase();
+    if (!email || !EMAIL_RE.test(email)) throw new BadRequestException('Enter a valid email address');
+    checkPassword(dto.password);
+
+    const { invite, role } = await this.admission(dto.invite);
+    if (await this.users.findByEmail(email)) {
+      throw new ConflictException('An account with this email already exists. Sign in instead.');
+    }
+    const user = await this.users.create({
+      email,
+      displayName: dto.displayName?.trim().slice(0, 100) || email.split('@')[0],
+      passwordHash: await hashPassword(dto.password),
+      role,
+    });
+    await this.admitted(user, invite);
+    return this.issue(user);
+  }
+
+  async login(email: string | undefined, password: string | undefined) {
+    const user = email ? await this.users.findByEmail(email) : null;
+    this.dummyHash ??= hashPassword('dummy-password');
+    const ok = await verifyPassword(password || '', user?.passwordHash || (await this.dummyHash));
+    if (!user || !user.passwordHash || !ok) {
+      throw new UnauthorizedException('Wrong email or password');
+    }
+    return this.issue(user);
+  }
+
+  async me(userId: string) {
+    const user = await this.requireUser(userId);
+    const mailboxes = await this.mailboxes.list(userId);
+    return { user: toPublicUser(user), mailboxes: mailboxes.map(toPublicMailbox) };
+  }
+
+  async updateMe(
+    userId: string,
+    dto: { displayName?: string; currentPassword?: string; newPassword?: string },
+  ) {
+    const user = await this.requireUser(userId);
+    const changes: Partial<User> = {};
+    if (dto.displayName !== undefined) changes.displayName = dto.displayName.trim().slice(0, 100) || null;
+    if (dto.newPassword !== undefined) {
+      checkPassword(dto.newPassword);
+      // Google/Microsoft-only users may set a first password without one
+      if (user.passwordHash && !(await verifyPassword(dto.currentPassword || '', user.passwordHash))) {
+        throw new UnauthorizedException('Your current password is wrong');
+      }
+      changes.passwordHash = await hashPassword(dto.newPassword);
+    }
+    return toPublicUser((await this.users.update(userId, changes))!);
+  }
+
+  async refresh(token: string) {
     try {
-      stored = Buffer.from(decryptSecret(account.encryptedPassword), 'utf8');
+      const payload = this.jwtService.verify<AccessTokenPayload>(token);
+      const user = payload.typ === 'access' ? await this.users.findById(payload.sub) : null;
+      if (!user) throw new Error('unknown user');
+      return { access_token: this.issue(user).access_token };
     } catch {
-      return null;
+      throw new UnauthorizedException('Invalid token');
     }
-    const given = Buffer.from(password, 'utf8');
-    if (stored.length !== given.length || !timingSafeEqual(stored, given)) {
-      return null;
-    }
-
-    return account;
   }
 
   /**
-   * Signs in to an existing account, or connects a new one: the mail
-   * server settings come from the request or from provider discovery, and
-   * the account is only created once the IMAP server accepts the login.
+   * The user a Google/Microsoft sign-in belongs to, creating one when
+   * allowed. Existing users are matched by the provider's account id;
+   * only Google, which verifies addresses, may also match by email.
    */
-  async connect(dto: LoginDto) {
-    const email = dto.email?.trim().toLowerCase();
-    if (!email || !dto.password) {
-      throw new BadRequestException('Email and password are required');
-    }
+  async oauthSignIn(provider: OAuthProvider, identity: OAuthIdentity, inviteCode?: string): Promise<User> {
+    let user = await this.users.findByProviderSub(provider.id, identity.sub);
+    if (user) return user;
 
-    const existing = await this.accountService.findByEmail(email);
-    if (existing) {
-      const account = await this.validateUser(email, dto.password);
-      if (!account) {
-        throw new UnauthorizedException('Invalid credentials');
+    const byEmail = identity.email ? await this.users.findByEmail(identity.email) : null;
+    if (byEmail) {
+      if (provider.id === 'google' && identity.emailVerified && !byEmail.googleSub) {
+        return (await this.users.update(byEmail.id, { googleSub: identity.sub }))!;
       }
-      return this.login(account);
-    }
-
-    const preset = discoverProvider(email);
-    const imapHost = dto.imapHost || preset?.imapHost;
-    const smtpHost = dto.smtpHost || preset?.smtpHost;
-    if (!imapHost || !smtpHost) {
-      throw new BadRequestException(
-        'Could not detect your mail server. Enter the IMAP and SMTP settings.',
+      throw new ConflictException(
+        `A Mailman account already uses ${identity.email}. Sign in with your password, ` +
+          `then connect ${provider.label} from Settings.`,
       );
     }
 
-    const settings = {
-      imapHost,
-      imapPort: Number(dto.imapPort) || preset?.imapPort || 993,
-      imapSecure: dto.imapSecure ?? preset?.imapSecure ?? true,
-      smtpHost,
-      smtpPort: Number(dto.smtpPort) || preset?.smtpPort || 587,
-      smtpSecure: dto.smtpSecure ?? preset?.smtpSecure ?? false,
-    };
-
-    const ok = await this.imapSyncService.verifyCredentials({
-      host: settings.imapHost,
-      port: settings.imapPort,
-      secure: settings.imapSecure,
-      user: email,
-      pass: dto.password,
+    const { invite, role } = await this.admission(inviteCode, provider.label);
+    if (!identity.email) throw new BadRequestException(`${provider.label} did not share an email address`);
+    user = await this.users.create({
+      email: identity.email,
+      displayName: identity.name?.slice(0, 100) || identity.email.split('@')[0],
+      passwordHash: null,
+      role,
+      ...(provider.id === 'google' ? { googleSub: identity.sub } : { microsoftSub: identity.sub }),
     });
-    if (!ok) {
-      throw new UnauthorizedException('Could not sign in to your mail server. Check your password and server settings.');
-    }
-
-    const account = await this.accountService.create({
-      email,
-      displayName: dto.displayName || email.split('@')[0],
-      type: preset?.type || 'imap',
-      ...settings,
-      encryptedPassword: dto.password,
-      connected: true,
-    });
-
-    // Pull the inbox in the background so sign-in returns quickly
-    this.imapSyncService
-      .syncAccount(account.id)
-      .catch((err) => this.logger.warn(`Initial sync failed: ${err}`));
-
-    return this.login(account);
+    await this.admitted(user, invite);
+    return user;
   }
 
-  async login(account: Account) {
-    const payload = { email: account.email, sub: account.id };
-    return {
-      access_token: this.jwtService.sign(payload),
-      account: {
-        id: account.id,
-        email: account.email,
-        displayName: account.displayName,
-        type: account.type,
-        connected: account.connected,
-      },
-    };
+  /** Lets "Continue with ..." sign this user in later, unless another user has it. */
+  async linkProvider(userId: string, provider: OAuthProvider, identity: OAuthIdentity) {
+    const user = await this.requireUser(userId);
+    const field = provider.id === 'google' ? 'googleSub' : 'microsoftSub';
+    if (user[field] || (await this.users.findByProviderSub(provider.id, identity.sub))) return;
+    await this.users.update(userId, { [field]: identity.sub });
   }
 
-  /**
-   * Signs in or links an OAuth provider (Google/Facebook).
-   * If an account with the same email already exists, its OAuth tokens are
-   * updated. Otherwise a new account is created with the provider's tokens.
-   */
-  async oauthLogin(params: {
-    email: string;
-    displayName: string;
-    provider: 'google' | 'facebook';
-    providerId: string;
-    accessToken: string;
-    refreshToken?: string;
-  }) {
-    const { email, displayName, provider, providerId, accessToken, refreshToken } = params;
-
-    const existing = await this.accountService.findByEmail(email);
-
-    if (existing) {
-      const account = await this.accountService.update(existing.id, {
-        type: provider,
-        oauthProviderId: providerId,
-        accessToken: encryptSecret(accessToken),
-        refreshToken: refreshToken ? encryptSecret(refreshToken) : undefined,
-        connected: true,
-      });
-      return this.login(account!);
-    }
-
-    const account = await this.accountService.create({
-      email,
-      displayName: displayName || email.split('@')[0],
-      type: provider,
-      oauthProviderId: providerId,
-      accessToken: encryptSecret(accessToken),
-      refreshToken: refreshToken ? encryptSecret(refreshToken) : undefined,
-      connected: true,
-    });
-
-    return this.login(account);
+  private async requireUser(userId: string): Promise<User> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
-  async refreshToken(token: string) {
-    try {
-      const { email, sub } = this.jwtService.verify(token);
-      return {
-        access_token: this.jwtService.sign({ email, sub }),
-      };
-    } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+  private async admission(inviteCode: string | undefined, via?: string) {
+    if ((await this.users.count()) === 0) return { invite: null, role: 'admin' as const };
+    const invite = await this.invites.findValid(inviteCode);
+    if (!invite) {
+      throw new ForbiddenException(
+        via
+          ? `No Mailman account is linked to this ${via} account. Ask the admin for an invite.`
+          : 'This server is invite-only. Ask the admin for an invite code.',
+      );
     }
+    return { invite, role: 'user' as const };
+  }
+
+  private async admitted(user: User, invite: Awaited<ReturnType<InvitesService['findValid']>>) {
+    if (invite) await this.invites.markUsed(invite, user.id);
+    // Mailboxes from before user accounts existed belong to the first admin
+    if (user.role === 'admin') await this.accounts.adoptOrphans(user.id);
   }
 }

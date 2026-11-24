@@ -5,15 +5,20 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import helmet from 'helmet';
 import compression from 'compression';
 import { PluginRegistryService } from './plugins/plugin-registry.service';
 
+// The server's package.json sits next to dist/, both in the repo and in the Docker image
+const APP_VERSION: string = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8')).version;
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
+  // Behind Caddy (same machine): trust its X-Forwarded-* for client IP and https
+  app.set('trust proxy', 'loopback');
 
   if (process.env.NODE_ENV === 'production') {
     for (const name of ['JWT_SECRET', 'ENCRYPTION_KEY']) {
@@ -39,9 +44,11 @@ async function bootstrap() {
     }),
   );
   app.use(compression());
+  // Comma-separated list, e.g. the web origin plus the desktop/mobile app
+  // origins; "*" allows any (sign-in uses bearer tokens, not cookies)
+  const corsOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map((o) => o.trim());
   app.enableCors({
-    // Comma-separated list, e.g. the web origin plus the desktop/mobile app origins
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
+    origin: corsOrigins.includes('*') ? true : corsOrigins,
     credentials: true,
   });
 
@@ -63,7 +70,7 @@ async function bootstrap() {
   app.getHttpAdapter().get('/health', (req: Request, res: Response) => {
     res.status(200).json({
       status: 'ok',
-      version: '1.1.4',
+      version: APP_VERSION,
       timestamp: new Date().toISOString(),
       plugins: pluginRegistry.getPlugins().map((p) => p.id),
     });

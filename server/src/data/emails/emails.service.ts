@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, Repository, Like } from 'typeorm';
+import { FindOptionsWhere, In, Repository, Like } from 'typeorm';
 import { Email } from '../../database/entities/email.entity';
 
 @Injectable()
@@ -12,15 +12,19 @@ export class EmailService {
 
   async findAll(params: {
     accountId?: string;
+    /** Limit to these mailboxes (an empty list matches nothing) */
+    accountIds?: string[];
     folder?: string;
     page?: number;
     limit?: number;
     search?: string;
   }): Promise<Email[]> {
-    const { accountId, folder, page = 1, limit = 50, search } = params;
-    
+    const { accountId, accountIds, folder, page = 1, limit = 50, search } = params;
+    if (accountIds && accountIds.length === 0) return [];
+
     const base: FindOptionsWhere<Email> = {};
     if (accountId) base.accountId = accountId;
+    else if (accountIds) base.accountId = In(accountIds);
     if (folder) base.folder = folder;
     // An array of conditions is OR-ed together by TypeORM
     const where = search
@@ -73,5 +77,9 @@ export class EmailService {
 
   async search(query: string, accountId?: string): Promise<Email[]> {
     return this.findAll({ search: query, accountId });
+  }
+
+  async removeByAccount(accountId: string): Promise<void> {
+    await this.emailsRepository.delete({ accountId });
   }
 }

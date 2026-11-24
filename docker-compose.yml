@@ -27,6 +27,10 @@ services:
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
       - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID:-}
       - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-}
+      # "common" = personal and work accounts; or your Azure tenant id
+      - MICROSOFT_TENANT=${MICROSOFT_TENANT:-common}
+      # Public address (e.g. https://mail.example.com); used in Google/Microsoft redirect URIs
+      - PUBLIC_URL=${PUBLIC_URL:-}
       - PLUGINS_DIR=/app/plugins
       - TEMPLATES_DIR=/app/data/templates
       - AUDIT_LOG_DIR=/app/data/logs

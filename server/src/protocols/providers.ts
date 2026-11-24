@@ -5,7 +5,7 @@ export interface ProviderPreset {
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
-  type: 'imap' | 'gmail' | 'outlook';
+  type: 'imap' | 'gmail' | 'outlook' | 'yahoo' | 'icloud';
 }
 
 const PRESETS: Record<string, ProviderPreset> = {
@@ -61,7 +61,7 @@ const PRESETS: Record<string, ProviderPreset> = {
     smtpHost: 'smtp.mail.yahoo.com',
     smtpPort: 465,
     smtpSecure: true,
-    type: 'imap',
+    type: 'yahoo',
   },
   'icloud.com': {
     imapHost: 'imap.mail.me.com',
@@ -70,7 +70,7 @@ const PRESETS: Record<string, ProviderPreset> = {
     smtpHost: 'smtp.mail.me.com',
     smtpPort: 587,
     smtpSecure: false,
-    type: 'imap',
+    type: 'icloud',
   },
   'me.com': {
     imapHost: 'imap.mail.me.com',
@@ -79,7 +79,7 @@ const PRESETS: Record<string, ProviderPreset> = {
     smtpHost: 'smtp.mail.me.com',
     smtpPort: 587,
     smtpSecure: false,
-    type: 'imap',
+    type: 'icloud',
   },
 };
 

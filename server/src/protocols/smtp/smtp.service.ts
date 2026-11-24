@@ -3,13 +3,14 @@ import nodemailer from 'nodemailer';
 import type Mail from 'nodemailer/lib/mailer';
 import { AccountService } from '../../data/accounts/accounts.service';
 import { EmailService } from '../../data/emails/emails.service';
-import { decryptSecret } from '../../crypto/secret-box';
+import { MailCredentialsService } from '../../oauth/mail-credentials.service';
 
 @Injectable()
 export class SmtpService {
   constructor(
     private readonly accountService: AccountService,
     private readonly emailService: EmailService,
+    private readonly mailCredentials: MailCredentialsService,
   ) {}
 
   async sendEmail(
@@ -27,10 +28,7 @@ export class SmtpService {
       host: account.smtpHost,
       port: account.smtpPort || 587,
       secure: account.smtpSecure,
-      auth: {
-        user: account.email,
-        pass: decryptSecret(account.encryptedPassword),
-      },
+      auth: await this.mailCredentials.smtpAuth(account),
     });
 
     const info = await transporter.sendMail({

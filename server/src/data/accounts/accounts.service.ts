@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { Account } from '../../database/entities/account.entity';
 import { encryptSecret } from '../../crypto/secret-box';
 
@@ -53,5 +53,14 @@ export class AccountService {
 
   async updateConnectionStatus(id: string, connected: boolean): Promise<void> {
     await this.accountsRepository.update(id, { connected });
+  }
+
+  findByUser(userId: string): Promise<Account[]> {
+    return this.accountsRepository.find({ where: { userId }, order: { createdAt: 'ASC' } });
+  }
+
+  /** Gives mailboxes from before user accounts existed to the first admin. */
+  async adoptOrphans(userId: string): Promise<void> {
+    await this.accountsRepository.update({ userId: IsNull() }, { userId });
   }
 }
