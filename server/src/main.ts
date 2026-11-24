@@ -3,13 +3,16 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import type { NextFunction, Request, Response } from 'express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { existsSync } from 'fs';
+import { join } from 'path';
 import helmet from 'helmet';
 import compression from 'compression';
 import { PluginRegistryService } from './plugins/plugin-registry.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api');
 
   if (process.env.NODE_ENV === 'production') {
@@ -21,7 +24,20 @@ async function bootstrap() {
   }
 
   // Security
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          // The web client checks GitHub for new releases
+          connectSrc: ["'self'", 'https://api.github.com'],
+          // Images inside emails come from anywhere
+          imgSrc: ["'self'", 'data:', 'https:'],
+          // Keep plain-HTTP self-hosting (e.g. http://localhost:8080) working
+          upgradeInsecureRequests: null,
+        },
+      },
+    }),
+  );
   app.use(compression());
   app.enableCors({
     // Comma-separated list, e.g. the web origin plus the desktop/mobile app origins
@@ -52,6 +68,18 @@ async function bootstrap() {
       plugins: pluginRegistry.getPlugins().map((p) => p.id),
     });
   });
+
+  // Serve the built web client when present (the Docker image puts it in ./public)
+  const clientDir = process.env.CLIENT_DIR || join(process.cwd(), 'public');
+  const clientIndex = join(clientDir, 'index.html');
+  if (existsSync(clientIndex)) {
+    app.useStaticAssets(clientDir, { index: false });
+    // Any other page load gets the app; it handles its own routes
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.method !== 'GET' || req.path === '/health' || req.path.startsWith('/api')) return next();
+      res.sendFile(clientIndex);
+    });
+  }
 
   const port = process.env.PORT || 3001;
   await app.listen(port);

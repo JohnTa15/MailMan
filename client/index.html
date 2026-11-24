@@ -7,14 +7,8 @@
     <meta name="theme-color" content="#4f46e5" />
     <title>Mailman</title>
     <meta name="description" content="A beautiful, lightweight, and secure open source mail client" />
-    <script>
-      // Apply the saved theme before first paint to avoid a flash
-      try {
-        var s = JSON.parse(localStorage.getItem('webmail-storage') || '{}').state || {};
-        var dark = s.darkMode !== undefined ? s.darkMode : matchMedia('(prefers-color-scheme: dark)').matches;
-        if (dark) document.documentElement.classList.add('dark');
-      } catch (e) {}
-    </script>
+    <!-- Applies the saved theme before first paint; a file, not inline, so a strict CSP allows it -->
+    <script src="./theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
