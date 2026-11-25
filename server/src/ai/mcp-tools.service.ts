@@ -4,6 +4,7 @@ import { Account } from '../database/entities/account.entity';
 import { Email } from '../database/entities/email.entity';
 import { AccountService } from '../data/accounts/accounts.service';
 import { EmailService } from '../data/emails/emails.service';
+import { CalendarService } from '../calendar/calendar.service';
 
 /** A problem the AI caused (bad input, unknown id); shown to it as a tool error. */
 export class ToolError extends Error {}
@@ -75,6 +76,7 @@ export class McpToolsService {
   constructor(
     private readonly accounts: AccountService,
     private readonly emails: EmailService,
+    private readonly calendar: CalendarService,
   ) {}
 
   /** Tools this key may use. */
@@ -183,6 +185,44 @@ export class McpToolsService {
         return {
           data: { emails: found.map((e) => this.summaryOf(e, ctx)), page, hasMore: found.length === limit },
           summary: `Searched ${folder}${query ? ` for "${query.slice(0, 60)}"` : ''}: ${found.length} result(s)`,
+        };
+      },
+    },
+    {
+      name: 'list_events',
+      title: 'List calendar events',
+      description:
+        "Lists events from the calendars of the user's mailboxes (Google, Outlook, iCloud, Yahoo) between two dates. Default: the next 7 days.",
+      scope: 'read',
+      readOnly: true,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'ISO date or date-time. Default: now.' },
+          to: { type: 'string', description: 'ISO date or date-time. Default: 7 days after from. At most 60 days after from.' },
+        },
+        additionalProperties: false,
+      },
+      run: async (args, ctx) => {
+        const from = new Date(optStr(args.from, 'from', 40) || Date.now());
+        const to = new Date(optStr(args.to, 'to', 40) || from.getTime() + 7 * 86_400_000);
+        if (isNaN(from.getTime()) || isNaN(to.getTime()) || to <= from) throw new ToolError('from and to must be dates, from before to');
+        if (to.getTime() - from.getTime() > 60 * 86_400_000) throw new ToolError('At most 60 days at a time');
+        const { events, problems } = await this.calendar.events(ctx.key.userId, from.toISOString(), to.toISOString());
+        return {
+          data: {
+            events: events.slice(0, 200).map(({ title, start, end, allDay, location, organizer, mailboxId }) => ({
+              title,
+              start,
+              end,
+              allDay,
+              location,
+              organizer,
+              mailbox: ctx.mailboxes.find((m) => m.id === mailboxId)?.email,
+            })),
+            unavailable: problems.map((p) => `${p.mailbox}: ${p.message}`),
+          },
+          summary: `Listed ${events.length} event(s) from ${from.toISOString().slice(0, 10)} to ${to.toISOString().slice(0, 10)}`,
         };
       },
     },

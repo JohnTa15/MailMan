@@ -121,8 +121,9 @@ const microsoftSteps = (p: ProviderIntegration) => [
     <span className="font-mono text-xs">{p.clientSecretVar}</span>.
   </li>,
   <li key="5">
-    <b>API permissions</b> → Add → Microsoft Graph → Delegated: <span className="font-mono text-xs">offline_access, IMAP.AccessAsUser.All, SMTP.Send</span>{' '}
-    (openid, email and profile are usually there already).
+    <b>API permissions</b> → Add → Microsoft Graph → Delegated:{' '}
+    <span className="font-mono text-xs">offline_access, IMAP.AccessAsUser.All, SMTP.Send, Calendars.Read</span> (openid, email and profile are
+    usually there already).
   </li>,
   <li key="6">
     From <b>Overview</b>, copy the <b>Application (client) ID</b> into <span className="font-mono text-xs">{p.clientIdVar}</span>, then restart.
@@ -133,13 +134,18 @@ const microsoftSteps = (p: ProviderIntegration) => [
 ];
 
 const googleSteps = (p: ProviderIntegration) => [
+  <li key="0">
+    In the same Google Cloud project, open <Link href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com">Google Calendar API</Link>{' '}
+    and click <b>Enable</b>.
+  </li>,
   <li key="1">
     In <Link href="https://console.cloud.google.com/auth/branding">Google Auth Platform</Link>, set up the consent screen (External). Under{' '}
     <b>Audience</b>, choose <b>Publish app</b>: in Testing, Google signs people out every 7 days. The "unverified app" warning is fine for
     personal use.
   </li>,
   <li key="2">
-    Under <b>Data access</b>, add the scope <span className="font-mono text-xs">https://mail.google.com/</span>.
+    Under <b>Data access</b>, add the scopes <span className="font-mono text-xs">https://mail.google.com/</span> and{' '}
+    <span className="font-mono text-xs">https://www.googleapis.com/auth/calendar.readonly</span>.
   </li>,
   <li key="3">
     <b>Clients → Create client → Web application</b>, and add the redirect URI above under Authorized redirect URIs.

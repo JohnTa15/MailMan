@@ -6,6 +6,8 @@ export interface TokenSet {
   refreshToken?: string;
   expiresAt: Date;
   idToken?: string;
+  /** What the person actually allowed (Google lets them untick calendar) */
+  scope?: string;
 }
 
 export interface OAuthIdentity {
@@ -38,8 +40,9 @@ export class OAuthClientService {
     });
   }
 
-  refresh(provider: OAuthProvider, refreshToken: string): Promise<TokenSet> {
-    return this.tokenRequest(provider, { grant_type: 'refresh_token', refresh_token: refreshToken });
+  /** A fresh token; `scopes` asks for another API (Microsoft Graph) with the same refresh token. */
+  refresh(provider: OAuthProvider, refreshToken: string, scopes?: string[]): Promise<TokenSet> {
+    return this.tokenRequest(provider, { grant_type: 'refresh_token', refresh_token: refreshToken }, scopes);
   }
 
   /**
@@ -73,12 +76,13 @@ export class OAuthClientService {
     };
   }
 
-  private async tokenRequest(provider: OAuthProvider, params: Record<string, string>): Promise<TokenSet> {
+  private async tokenRequest(provider: OAuthProvider, params: Record<string, string>, scopes?: string[]): Promise<TokenSet> {
+    const tokenScopes = scopes || provider.tokenScopes || provider.scopes;
     const body = new URLSearchParams({
       ...params,
       client_id: provider.clientId()!,
       client_secret: provider.clientSecret()!,
-      ...(provider.scopeOnTokenRequest ? { scope: provider.scopes.join(' ') } : {}),
+      ...(provider.scopeOnTokenRequest || scopes ? { scope: tokenScopes.join(' ') } : {}),
     });
     const res = await fetch(provider.tokenUrl(), {
       method: 'POST',
@@ -95,6 +99,7 @@ export class OAuthClientService {
       refreshToken: typeof data.refresh_token === 'string' ? data.refresh_token : undefined,
       expiresAt: new Date(Date.now() + (Number(data.expires_in) || 3600) * 1000),
       idToken: typeof data.id_token === 'string' ? data.id_token : undefined,
+      scope: typeof data.scope === 'string' ? data.scope : undefined,
     };
   }
 }

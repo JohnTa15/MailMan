@@ -22,6 +22,13 @@ export class MailboxesController {
     return toPublicMailbox(await this.mailboxes.connectWithPassword(userId, body));
   }
 
+  /** Adds an Office 365 shared mailbox opened with this mailbox's Microsoft sign-in. */
+  @Post(':id/shared')
+  async addShared(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: { email?: string }) {
+    connectLimiter.hit(userId);
+    return toPublicMailbox(await this.mailboxes.addShared(userId, id, body.email));
+  }
+
   @Patch(':id')
   async rename(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: { displayName?: string }) {
     return toPublicMailbox(await this.mailboxes.rename(userId, id, body.displayName));

@@ -33,6 +33,10 @@ interface AppState {
   searchQuery: string;
 
   // UI
+  /** Mail or the calendar fills the main area */
+  view: 'mail' | 'calendar';
+  /** Calendars the person switched off */
+  hiddenCalendars: string[];
   darkMode: boolean;
   mobileNavOpen: boolean;
   compose: ComposeDraft | null;
@@ -60,6 +64,8 @@ interface AppState {
   selectEmail: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
   setDarkMode: (dark: boolean) => void;
+  setView: (view: 'mail' | 'calendar') => void;
+  toggleCalendar: (id: string) => void;
   setMobileNavOpen: (open: boolean) => void;
   openCompose: (draft?: ComposeDraft) => void;
   closeCompose: () => void;
@@ -85,6 +91,7 @@ const signedOut = {
   searchQuery: '',
   compose: null,
   settings: null,
+  view: 'mail' as const,
 };
 
 export const useAppStore = create<AppState>()(
@@ -96,6 +103,8 @@ export const useAppStore = create<AppState>()(
 
       isLoading: false,
       isLoadingMore: false,
+      view: 'mail',
+      hiddenCalendars: [],
       darkMode: !!prefersDark,
       mobileNavOpen: false,
 
@@ -144,8 +153,15 @@ export const useAppStore = create<AppState>()(
       addEmail: (email) => set((state) => ({ emails: [email, ...state.emails] })),
 
       selectFolder: (selectedFolder) =>
-        set({ selectedFolder, selectedEmailId: null, searchQuery: '', mobileNavOpen: false }),
-      selectMailbox: (selectedMailboxId) => set({ selectedMailboxId, selectedEmailId: null, mobileNavOpen: false }),
+        set({ selectedFolder, selectedEmailId: null, searchQuery: '', mobileNavOpen: false, view: 'mail' }),
+      selectMailbox: (selectedMailboxId) => set({ selectedMailboxId, selectedEmailId: null, mobileNavOpen: false, view: 'mail' }),
+      setView: (view) => set({ view, mobileNavOpen: false }),
+      toggleCalendar: (id) =>
+        set((state) => ({
+          hiddenCalendars: state.hiddenCalendars.includes(id)
+            ? state.hiddenCalendars.filter((x) => x !== id)
+            : [...state.hiddenCalendars, id],
+        })),
       selectEmail: (selectedEmailId) => set({ selectedEmailId }),
       setSearchQuery: (searchQuery) => set({ searchQuery }),
       setDarkMode: (darkMode) => set({ darkMode }),
@@ -164,6 +180,7 @@ export const useAppStore = create<AppState>()(
         isDemo: state.isDemo,
         serverUrl: state.serverUrl,
         darkMode: state.darkMode,
+        hiddenCalendars: state.hiddenCalendars,
       }),
     }
   )

@@ -52,6 +52,42 @@ export interface Mailbox {
   syncError?: string | null;
   /** Every older message has been downloaded */
   syncComplete?: boolean;
+  /** An Office 365 shared mailbox: the mailbox whose sign-in opens it */
+  parentId?: string | null;
+  /** Shared mailboxes can be added through this one */
+  canAddShared?: boolean;
+}
+
+export interface CalendarInfo {
+  id: string;
+  mailboxId: string;
+  mailbox: string;
+  name: string;
+  color: string;
+  primary: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  mailboxId: string;
+  title: string;
+  /** ISO; all-day events start at 00:00 UTC of their date */
+  start: string;
+  /** Exclusive */
+  end: string;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+  organizer?: string;
+  url?: string;
+}
+
+export interface CalendarProblem {
+  mailboxId: string;
+  mailbox: string;
+  message: string;
+  reconnect: boolean;
 }
 
 export type OAuthProviderId = 'google' | 'microsoft';

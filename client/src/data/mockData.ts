@@ -1,4 +1,4 @@
-import { Email, Mailbox, User } from '../types';
+import { Email, Mailbox, User, CalendarEvent, CalendarInfo } from '../types';
 
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -152,3 +152,43 @@ export const DEMO_EMAILS: Email[] = seeds.map((s) => ({
   folder: 'inbox',
   ...s,
 }));
+
+/** Demo calendars around today, so the calendar view has something to show. */
+export function demoCalendar(): { calendars: CalendarInfo[]; events: CalendarEvent[] } {
+  const calendars: CalendarInfo[] = [
+    { id: 'demo::work', mailboxId: DEMO_MAILBOX.id, mailbox: DEMO_MAILBOX.email, name: 'Work', color: '#6366F1', primary: true },
+    { id: 'demo::home', mailboxId: DEMO_MAILBOX.id, mailbox: DEMO_MAILBOX.email, name: 'Personal', color: '#EC4899', primary: false },
+  ];
+  const day = (offset: number, hour: number, minute = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    d.setHours(hour, minute, 0, 0);
+    return d.toISOString();
+  };
+  const allDay = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00:00.000Z`;
+  };
+  const e = (id: string, calendarId: string, title: string, start: string, end: string, extra: Partial<CalendarEvent> = {}): CalendarEvent => ({
+    id,
+    calendarId,
+    mailboxId: DEMO_MAILBOX.id,
+    title,
+    start,
+    end,
+    allDay: false,
+    ...extra,
+  });
+  const events: CalendarEvent[] = [
+    e('d1', 'demo::work', 'Design review', day(0, 10), day(0, 11), { location: 'Room Aegean', organizer: 'Maria' }),
+    e('d2', 'demo::work', 'Weekly sync', day(1, 9, 30), day(1, 10)),
+    e('d3', 'demo::home', 'Gym', day(1, 19), day(1, 20)),
+    e('d4', 'demo::work', 'Launch day', allDay(3), allDay(4), { allDay: true }),
+    e('d5', 'demo::home', 'Dinner with Nikos', day(4, 21), day(4, 23), { location: 'Psiri' }),
+    e('d6', 'demo::work', 'Quarterly planning', day(7, 14), day(7, 16)),
+    e('d7', 'demo::home', 'Dentist', day(-2, 17), day(-2, 18)),
+    e('d8', 'demo::work', 'Conference', allDay(10), allDay(13), { allDay: true, location: 'Thessaloniki' }),
+  ];
+  return { calendars, events };
+}

@@ -72,6 +72,18 @@ export class Account {
   @Column({ type: 'datetime', nullable: true })
   lastSyncAt: Date | null;
 
+  /**
+   * Set on an Office 365 shared mailbox: the mailbox whose sign-in opens it
+   * (the person must have access to the shared one).
+   */
+  @Index()
+  @Column({ type: 'text', nullable: true })
+  parentId: string | null;
+
+  /** CalDAV server for calendars of password mailboxes (iCloud, Yahoo, others) */
+  @Column({ type: 'text', nullable: true })
+  caldavUrl: string | null;
+
   /** Why the last sync failed, shown to the user; null when it worked */
   @Column({ type: 'text', nullable: true })
   syncError: string | null;

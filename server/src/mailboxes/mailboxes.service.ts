@@ -14,6 +14,7 @@ import { ImapSyncService } from '../protocols/imap/imap.sync.service';
 import { discoverProvider } from '../protocols/providers';
 import { OAuthIdentity, TokenSet } from '../oauth/oauth-client.service';
 import { OAuthProvider } from '../oauth/providers';
+import { MailCredentialsService } from '../oauth/mail-credentials.service';
 
 export interface PasswordMailboxDto {
   email: string;
@@ -29,8 +30,22 @@ export interface PasswordMailboxDto {
 
 export type PublicMailbox = Pick<
   Account,
-  'id' | 'email' | 'displayName' | 'type' | 'authType' | 'connected' | 'imapHost' | 'smtpHost' | 'createdAt' | 'lastSyncAt' | 'syncError'
-> & { syncComplete: boolean };
+  | 'id'
+  | 'email'
+  | 'displayName'
+  | 'type'
+  | 'authType'
+  | 'connected'
+  | 'imapHost'
+  | 'smtpHost'
+  | 'createdAt'
+  | 'lastSyncAt'
+  | 'syncError'
+  | 'parentId'
+> & { syncComplete: boolean; canAddShared: boolean };
+
+/** Office 365 shared mailboxes open with a work or school Microsoft sign-in. */
+const canAddShared = (a: Account) => a.type === 'outlook' && a.authType === 'oauth2' && !a.parentId;
 
 /** Whether every folder has been fetched back to its first message. */
 function syncComplete(a: Account): boolean {
@@ -56,6 +71,8 @@ export function toPublicMailbox(a: Account): PublicMailbox {
     imapHost: a.imapHost,
     smtpHost: a.smtpHost,
     createdAt: a.createdAt,
+    parentId: a.parentId,
+    canAddShared: canAddShared(a),
   };
 }
 
@@ -67,6 +84,7 @@ export class MailboxesService {
     private readonly accountService: AccountService,
     private readonly emailService: EmailService,
     private readonly imapSyncService: ImapSyncService,
+    private readonly mailCredentials: MailCredentialsService,
   ) {}
 
   list(userId: string): Promise<Account[]> {
@@ -197,10 +215,64 @@ export class MailboxesService {
     return (await this.accountService.update(id, { displayName: displayName?.trim().slice(0, 100) || undefined }))!;
   }
 
+  /**
+   * Adds an Office 365 shared mailbox (info@company.com) that the person
+   * signed in to `parentId` has Full Access to. It opens with their sign-in.
+   */
+  async addShared(userId: string, parentId: string, address: string | undefined): Promise<Account> {
+    const parent = await this.owned(userId, parentId);
+    if (!canAddShared(parent)) {
+      throw new BadRequestException('Shared mailboxes need a mailbox connected with "Sign in with Microsoft"');
+    }
+    const email = address?.trim().toLowerCase();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new BadRequestException('Enter the shared mailbox address');
+    if (email === parent.email) throw new BadRequestException('That is the mailbox itself');
+    const existing = await this.ensureAvailable(userId, email);
+    if (existing && existing.userId === userId) throw new ConflictException(`${email} is already in Mailman`);
+
+    const ok = await this.imapSyncService.verifyCredentials({
+      host: parent.imapHost,
+      port: parent.imapPort,
+      secure: parent.imapSecure,
+      user: email,
+      accessToken: await this.mailCredentials.accessToken(parent),
+    });
+    if (!ok) {
+      throw new BadRequestException(
+        `${parent.email} can't open ${email}. Check the address, and that your Microsoft 365 admin gave you Full Access to it (it can take an hour to apply).`,
+      );
+    }
+    const data: Partial<Account> = {
+      userId,
+      email,
+      displayName: email.split('@')[0],
+      type: 'outlook',
+      authType: 'oauth2',
+      parentId: parent.id,
+      imapHost: parent.imapHost,
+      imapPort: parent.imapPort,
+      imapSecure: parent.imapSecure,
+      smtpHost: parent.smtpHost,
+      smtpPort: parent.smtpPort,
+      smtpSecure: parent.smtpSecure,
+      accessToken: null as unknown as string,
+      refreshToken: null as unknown as string,
+      encryptedPassword: null as unknown as string,
+      connected: true,
+    };
+    const mailbox = existing ? (await this.accountService.update(existing.id, data))! : await this.accountService.create(data);
+    this.syncInBackground(mailbox);
+    return mailbox;
+  }
+
+  /** Removes a mailbox, its mail in Mailman, and shared mailboxes opened through it. */
   async remove(userId: string, id: string): Promise<void> {
     await this.owned(userId, id);
-    await this.emailService.removeByAccount(id);
-    await this.accountService.remove(id);
+    const shared = (await this.list(userId)).filter((m) => m.parentId === id);
+    for (const mailbox of [...shared.map((m) => m.id), id]) {
+      await this.emailService.removeByAccount(mailbox);
+      await this.accountService.remove(mailbox);
+    }
   }
 
   /** Syncs one mailbox, or all of the user's; failures are reported per mailbox. */

@@ -1,6 +1,6 @@
 import { FC, FormEvent, useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bot, Check, Copy, KeyRound, LogOut, Mail, Plug, Plus, Send, Trash2, User as UserIcon, X } from 'lucide-react';
+import { Bot, Check, Copy, KeyRound, LogOut, Mail, Plug, Plus, Send, Trash2, User as UserIcon, Users, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import { SettingsTab, useAppStore } from '../../store/appStore';
@@ -196,15 +196,23 @@ const MailboxesTab: FC = () => {
   const setMailboxes = useAppStore((s) => s.setMailboxes);
   const [adding, setAdding] = useState(mailboxes.length === 0);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [sharingFrom, setSharingFrom] = useState<string | null>(null);
+  // Shared mailboxes right under the mailbox that opens them
+  const ordered = mailboxes
+    .filter((m) => !m.parentId || !mailboxes.some((p) => p.id === m.parentId))
+    .flatMap((m) => [m, ...mailboxes.filter((c) => c.parentId === m.id)]);
 
   const remove = async (m: Mailbox) => {
-    if (!window.confirm(`Remove ${m.email}? Its emails are deleted from Mailman (not from your provider).`)) return;
-    if (isDemo) return setMailboxes(mailboxes.filter((x) => x.id !== m.id));
+    const shared = mailboxes.filter((x) => x.parentId === m.id);
+    const also = shared.length ? ` Its shared mailboxes (${shared.map((x) => x.email).join(', ')}) go too.` : '';
+    if (!window.confirm(`Remove ${m.email}? Its emails are deleted from Mailman (not from your provider).${also}`)) return;
+    const gone = new Set([m.id, ...shared.map((x) => x.id)]);
+    if (isDemo) return setMailboxes(mailboxes.filter((x) => !gone.has(x.id)));
     setRemoving(m.id);
     try {
       await mailboxService.remove(m.id);
-      setMailboxes(mailboxes.filter((x) => x.id !== m.id));
-      useAppStore.getState().setEmails(useAppStore.getState().emails.filter((e) => e.accountId !== m.id));
+      setMailboxes(mailboxes.filter((x) => !gone.has(x.id)));
+      useAppStore.getState().setEmails(useAppStore.getState().emails.filter((e) => !gone.has(e.accountId)));
       toast.success(`Removed ${m.email}`);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not remove the mailbox'));
@@ -218,20 +226,28 @@ const MailboxesTab: FC = () => {
       <Section title="Mailboxes" description="Every connected email account shows up in your inbox.">
         <div className="space-y-2">
           <AnimatePresence initial={false}>
-            {mailboxes.map((m) => (
+            {ordered.map((m) => (
               <motion.div
                 key={m.id}
                 layout
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -30, height: 0 }}
-                className="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-card ring-1 ring-ink-200/70 dark:bg-ink-800/60 dark:shadow-none dark:ring-white/10"
+                className={cn(
+                  'rounded-2xl bg-white px-4 py-3 shadow-card ring-1 ring-ink-200/70 dark:bg-ink-800/60 dark:shadow-none dark:ring-white/10',
+                  m.parentId && 'ml-6'
+                )}
               >
+               <div className="flex items-center gap-3">
                 <MailboxTypeLogo type={m.type} className="h-6 w-6" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{m.email}</p>
                   <p className="text-xs text-ink-500 dark:text-ink-400">
-                    {m.authType === 'oauth2' ? 'Signed in with ' + (m.type === 'gmail' ? 'Google' : 'Microsoft') : 'Password'}
+                    {m.parentId
+                      ? `Shared mailbox · opened with ${mailboxes.find((p) => p.id === m.parentId)?.email || 'your sign-in'}`
+                      : m.authType === 'oauth2'
+                        ? 'Signed in with ' + (m.type === 'gmail' ? 'Google' : 'Microsoft')
+                        : 'Password'}
                     {' · '}
                     {syncStatus(m)}
                   </p>
@@ -241,9 +257,22 @@ const MailboxesTab: FC = () => {
                     </p>
                   )}
                 </div>
+                {m.canAddShared && (
+                  <IconButton
+                    label={`Add a shared mailbox through ${m.email}`}
+                    active={sharingFrom === m.id}
+                    onClick={() => setSharingFrom(sharingFrom === m.id ? null : m.id)}
+                  >
+                    <Users className="h-4 w-4" />
+                  </IconButton>
+                )}
                 <IconButton label={`Remove ${m.email}`} tone="danger" onClick={() => remove(m)} disabled={removing === m.id}>
                   <Trash2 className="h-4 w-4" />
                 </IconButton>
+               </div>
+                <AnimatePresence>
+                  {sharingFrom === m.id && <SharedMailboxForm parent={m} onDone={() => setSharingFrom(null)} />}
+                </AnimatePresence>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -399,5 +428,65 @@ const InviteLink: FC<{ invite: Invite }> = ({ invite }) => {
         <p className="mt-2 text-xs text-emerald-700/80 dark:text-emerald-300/70">Invite code: <span className="font-mono">{invite.code}</span></p>
       </div>
     </motion.div>
+  );
+};
+
+/** Adds an Office 365 shared mailbox (info@company.com) the signed-in person has Full Access to. */
+const SharedMailboxForm: FC<{ parent: Mailbox; onDone: () => void }> = ({ parent, onDone }) => {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const domain = parent.email.split('@')[1];
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const mailbox = await mailboxService.addShared(parent.id, email.trim());
+      const { mailboxes, setMailboxes } = useAppStore.getState();
+      setMailboxes([...mailboxes, mailbox]);
+      toast.success(`Added ${mailbox.email}`);
+      onDone();
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Could not add the shared mailbox'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <motion.form
+      onSubmit={submit}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      className="overflow-hidden"
+    >
+      <div className="mt-3 space-y-2 border-t border-ink-200/70 pt-3 dark:border-white/10">
+        <p className="text-xs text-ink-500 dark:text-ink-400">
+          A shared or team mailbox your Microsoft 365 account can open, such as info@{domain}. It opens with this sign-in.
+        </p>
+        <div className="flex gap-2">
+          <Input
+            type="email"
+            aria-label="Shared mailbox address"
+            placeholder={`info@${domain}`}
+            value={email}
+            onChange={setEmail}
+            className="h-10 flex-1"
+            autoFocus
+          />
+          <Button type="submit" size="sm" loading={busy} disabled={!email.includes('@')}>
+            Add
+          </Button>
+        </div>
+        {error && (
+          <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+            {error}
+          </p>
+        )}
+      </div>
+    </motion.form>
   );
 };

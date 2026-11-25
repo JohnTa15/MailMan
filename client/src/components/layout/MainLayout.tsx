@@ -9,6 +9,7 @@ import { EmailList } from '../email/EmailList';
 import { EmailView } from '../email/EmailView';
 import { ComposeModal } from '../compose/ComposeModal';
 import { Sidebar } from './Sidebar';
+import { CalendarView } from '../calendar/CalendarView';
 import { SettingsModal } from '../settings/SettingsModal';
 import { AddMailbox } from '../mailboxes/AddMailbox';
 import { IconButton } from '../ui/Button';
@@ -73,6 +74,7 @@ export const MainLayout: FC = () => {
   const settings = useAppStore((s) => s.settings);
   const isDemo = useAppStore((s) => s.isDemo);
   const hasMailboxes = useAppStore((s) => s.mailboxes.length > 0);
+  const view = useAppStore((s) => s.view);
   const { refresh, poll, loadSession, markRead } = useMail();
   const selectedFolder = useAppStore((s) => s.selectedFolder);
   const selectedMailboxId = useAppStore((s) => s.selectedMailboxId);
@@ -135,6 +137,10 @@ export const MainLayout: FC = () => {
 
       {!isDemo && !hasMailboxes ? (
         <Welcome />
+      ) : view === 'calendar' ? (
+        <main className="relative flex min-w-0 flex-1 bg-white/40 dark:bg-ink-900/30">
+          <CalendarView />
+        </main>
       ) : (
       <main className="relative flex min-w-0 flex-1">
           <EmailList

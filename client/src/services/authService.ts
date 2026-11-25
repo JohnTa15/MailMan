@@ -57,6 +57,10 @@ export const mailboxService = {
   async remove(id: string) {
     await api.delete(`/mailboxes/${id}`);
   },
+  /** Adds an Office 365 shared mailbox opened with this mailbox's Microsoft sign-in */
+  async addShared(parentId: string, email: string) {
+    return (await api.post<Mailbox>(`/mailboxes/${parentId}/shared`, { email })).data;
+  },
 };
 
 export const inviteService = {

@@ -1,6 +1,6 @@
 import { FC, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Plus, Settings, X } from 'lucide-react';
+import { CalendarDays, Plus, Settings, X } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { FolderId } from '../../types';
 import { cn } from '../../lib/cn';
@@ -42,6 +42,8 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
   const openSettings = useAppStore((s) => s.openSettings);
   const isDemo = useAppStore((s) => s.isDemo);
   const selectedFolder = useAppStore((s) => s.selectedFolder);
+  const view = useAppStore((s) => s.view);
+  const setView = useAppStore((s) => s.setView);
   const selectFolder = useAppStore((s) => s.selectFolder);
   const openCompose = useAppStore((s) => s.openCompose);
 
@@ -104,7 +106,7 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
 
       <nav className="flex-1 space-y-1 overflow-y-auto" aria-label="Folders">
         {FOLDERS.map(({ id, label, icon: Icon }) => {
-          const active = selectedFolder === id;
+          const active = view === 'mail' && selectedFolder === id;
           const count = counts[id];
           return (
             <button
@@ -150,18 +152,48 @@ const SidebarContent: FC<{ onClose?: () => void }> = ({ onClose }) => {
           );
         })}
 
+        <button
+          onClick={() => setView('calendar')}
+          aria-current={view === 'calendar' ? 'page' : undefined}
+          className={cn(
+            'relative mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+            view === 'calendar'
+              ? 'text-primary-700 dark:text-white'
+              : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-400 dark:hover:bg-white/5 dark:hover:text-white'
+          )}
+        >
+          {view === 'calendar' && (
+            <motion.span
+              layoutId="sidebar-active"
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className="absolute inset-0 rounded-xl bg-white shadow-card ring-1 ring-ink-200/70 dark:bg-white/10 dark:shadow-none dark:ring-white/10"
+            />
+          )}
+          <CalendarDays className={cn('relative h-[18px] w-[18px]', view === 'calendar' && 'text-primary-600 dark:text-primary-300')} />
+          <span className="relative flex-1 text-left">Calendar</span>
+        </button>
+
         {mailboxes.length > 1 && (
           <div className="pt-5">
             <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">Mailboxes</p>
-            {[{ id: null, label: 'All inboxes' }, ...mailboxes.map((m) => ({ id: m.id, label: m.email, mailbox: m }))].map((row) => {
-              const active = selectedMailboxId === row.id;
+            {[
+              { id: null, label: 'All inboxes' },
+              // Each shared mailbox right under the mailbox that opens it
+              ...mailboxes
+                .filter((m) => !m.parentId || !mailboxes.some((p) => p.id === m.parentId))
+                .flatMap((m) => [m, ...mailboxes.filter((c) => c.parentId === m.id)])
+                .map((m) => ({ id: m.id, label: m.email, mailbox: m })),
+            ].map((row) => {
+              const active = view === 'mail' && selectedMailboxId === row.id;
               const unread = row.id ? unreadByMailbox.get(row.id) : undefined;
               return (
                 <button
                   key={row.id || 'all'}
                   onClick={() => selectMailbox(row.id)}
+                  title={'mailbox' in row && row.mailbox?.parentId ? `Shared mailbox` : undefined}
                   className={cn(
                     'relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors',
+                    'mailbox' in row && row.mailbox?.parentId && 'pl-8',
                     active ? 'font-semibold text-ink-900 dark:text-white' : 'text-ink-600 hover:bg-ink-100 dark:text-ink-400 dark:hover:bg-white/5'
                   )}
                 >

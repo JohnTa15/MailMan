@@ -10,6 +10,7 @@ import { PluginsModule } from './plugins/plugins.module';
 import { UsersModule } from './users/users.module';
 import { MailboxesModule } from './mailboxes/mailboxes.module';
 import { AiModule } from './ai/ai.module';
+import { CalendarModule } from './calendar/calendar.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AiModule } from './ai/ai.module';
     ProtocolsModule,
     PluginsModule,
     AiModule,
+    CalendarModule,
   ],
 })
 export class AppModule {}

@@ -141,8 +141,9 @@ one step. Each provider turns on once its client ID and secret are set in `.env`
 Gmail still works with an app password; Outlook/Office 365 need Microsoft.
 
 **Google** (Google Cloud Console):
-1. *APIs & Services → OAuth consent screen*: External; add the scope
-   `https://mail.google.com/`. Under *Audience*, set the publishing status to
+1. Enable the **Google Calendar API** for the project. *Google Auth Platform*:
+   External; under *Data access* add the scopes `https://mail.google.com/` and
+   `https://www.googleapis.com/auth/calendar.readonly`. Under *Audience*, set the publishing status to
    **In production** (in *Testing*, Google expires sign-ins after 7 days). Without
    Google's verification you will see an "unverified app" warning; that is fine
    for personal use (up to 100 people).
@@ -156,7 +157,8 @@ Gmail still works with an app password; Outlook/Office 365 need Microsoft.
 2. *Certificates & secrets → New client secret*.
 3. *API permissions → Add → APIs my organization uses → Office 365 Exchange
    Online → Delegated*: `IMAP.AccessAsUser.All` and `SMTP.Send`
-   (plus `offline_access`, `openid`, `email`, `profile` from Microsoft Graph).
+   (plus `offline_access`, `openid`, `email`, `profile` and `Calendars.Read`
+   from Microsoft Graph).
 4. Put the Application (client) ID and the secret value in `MICROSOFT_CLIENT_ID`
    and `MICROSOFT_CLIENT_SECRET`. Work accounts may need IMAP and authenticated
    SMTP enabled for the mailbox by their admin.
@@ -164,6 +166,17 @@ Gmail still works with an app password; Outlook/Office 365 need Microsoft.
 Restart the server after changing `.env` (`docker compose up -d`). Admins can
 check the setup in **Settings → Integrations**: it shows which variables are
 missing and the exact redirect URI to register.
+
+### Calendars and shared mailboxes
+
+The **Calendar** view shows the events of every connected account, read-only:
+Google and Microsoft accounts connected with their sign-in, and iCloud and Yahoo
+through CalDAV with their app password. Accounts connected before calendars
+existed need to be reconnected once to allow calendar access.
+
+Office 365 **shared mailboxes** (info@company.com) are added in *Settings →
+Mailboxes* with the people icon next to a Microsoft account that has Full
+Access to them. They open with that account's sign-in.
 
 ### Syncing
 

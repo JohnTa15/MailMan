@@ -1,6 +1,6 @@
 {
   "name": "openwebmail",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Open source, lightweight, secure web mail client with IMAP/SMTP/EWS/OAuth2 support",
   "private": true,
   "workspaces": [
