@@ -14,8 +14,9 @@
     "appId": "com.mailman.app",
     "productName": "Mailman",
     "npmRebuild": false,
+    "icon": "resources/icon.png",
     "directories": {
-      "buildResources": "build",
+      "buildResources": "resources",
       "output": "dist"
     },
     "files": [

@@ -13,6 +13,8 @@ function createWindow() {
     minHeight: 768,
     backgroundColor: store.get('darkMode', false) ? '#0b0d17' : '#f7f7fb',
     autoHideMenuBar: true,
+    // Window and taskbar icon on Linux (Windows takes it from the .exe)
+    icon: path.join(__dirname, 'icon.png'),
     // Native frame on Windows/Linux; inset traffic lights on macOS
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }

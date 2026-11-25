@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="currentColor">
+  <!-- One-colour mark for toolbars and print -->
+  <path d="M26 38 L62 66.4 V92 H32 a6 6 0 0 1 -6 -6 Z"/>
+  <path d="M102 38 L66 66.4 V92 H96 a6 6 0 0 0 6 -6 Z"/>
+</svg>
