@@ -104,7 +104,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
-          path: electron/dist/*.exe
+          # latest.yml and the blockmap let installed apps update themselves
+          path: |
+            electron/dist/*.exe
+            electron/dist/*.exe.blockmap
+            electron/dist/latest.yml
           if-no-files-found: error
 
   build-android:
@@ -141,16 +145,34 @@ jobs:
           npx cap sync android
 
       - name: Build Android APK
+        # Signed with the key in the ANDROID_KEYSTORE_BASE64 secret, so every
+        # release can install over the previous one (built-in updates).
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          MAILMAN_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
+          export MAILMAN_KEYSTORE="$RUNNER_TEMP/mailman.jks"
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$MAILMAN_KEYSTORE"
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 is not set: this APK gets a one-off key and cannot update an installed Mailman"
+            export MAILMAN_KEYSTORE_PASSWORD="$(openssl rand -hex 16)"
+            keytool -genkeypair -keystore "$MAILMAN_KEYSTORE" -storetype PKCS12 -alias mailman -keyalg RSA -keysize 4096 \
+              -validity 10000 -storepass "$MAILMAN_KEYSTORE_PASSWORD" -dname "CN=Mailman"
+          fi
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
+          mkdir -p out
+          cp app/build/outputs/apk/release/app-release.apk "out/Mailman-$VERSION.apk"
+          rm -f "$MAILMAN_KEYSTORE"
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/out/*.apk
           if-no-files-found: error
 
   release:
@@ -172,6 +194,8 @@ jobs:
         with:
           files: |
             windows-installer/*.exe
+            windows-installer/*.exe.blockmap
+            windows-installer/latest.yml
             android-apk/**/*.apk
           # Creates the tag at the built commit when it doesn't exist yet
           tag_name: ${{ needs.version.outputs.tag }}

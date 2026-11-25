@@ -1,7 +1,16 @@
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, ArrowDownToLine, RefreshCw, Sparkles } from 'lucide-react';
-import { APP_VERSION, UpdateInfo, checkForUpdate, openExternal } from '../../lib/updates';
+import { toast } from 'react-hot-toast';
+import {
+  APP_VERSION,
+  UpdateInfo,
+  checkForUpdate,
+  currentPlatform,
+  desktopUpdater,
+  installAndroidUpdate,
+  openExternal,
+} from '../../lib/updates';
 import { formatBytes } from '../../lib/format';
 import { cn } from '../../lib/cn';
 
@@ -10,6 +19,12 @@ type State =
   | { kind: 'checking' }
   | { kind: 'latest' }
   | { kind: 'available'; update: UpdateInfo }
+  /** Built-in updates: downloading inside the app */
+  | { kind: 'downloading'; version: string; percent: number }
+  /** Windows: downloaded, installs on restart */
+  | { kind: 'ready'; version: string }
+  /** Android: the system installer is open */
+  | { kind: 'installing'; version: string }
   | { kind: 'error' };
 
 const swap = {
@@ -58,17 +73,73 @@ export const UpdateButton: FC<UpdateButtonProps> = ({ variant = 'card', autoChec
     }
   }, []);
 
+  // Windows: the app's own updater checks and downloads in the background
+  const desktop = desktopUpdater();
+  const [builtIn, setBuiltIn] = useState(false);
   useEffect(() => {
-    if (autoCheck) run(false, true);
-    return () => clearTimeout(resetTimer.current);
-  }, [autoCheck, run]);
+    if (!desktop) return;
+    const apply = (s: DesktopUpdateState, quiet: boolean) => {
+      clearTimeout(resetTimer.current);
+      if (s.status === 'unsupported') return;
+      setBuiltIn(true);
+      if (s.status === 'downloading') setState({ kind: 'downloading', version: s.version || '', percent: s.percent || 0 });
+      else if (s.status === 'ready') setState({ kind: 'ready', version: s.version || '' });
+      else if (s.status === 'checking') !quiet && setState({ kind: 'checking' });
+      else if (s.status === 'latest' || s.status === 'error') {
+        if (quiet) return setState({ kind: 'idle' });
+        setState({ kind: s.status });
+        resetTimer.current = setTimeout(() => setState({ kind: 'idle' }), 3500);
+      }
+    };
+    desktop.state().then((s) => apply(s, true));
+    return desktop.onState((s) => apply(s, false));
+  }, [desktop]);
 
-  const onClick = () => {
-    if (state.kind === 'available') openExternal(state.update.downloadUrl);
-    else if (state.kind !== 'checking') run(true, false);
+  useEffect(() => {
+    if (autoCheck && !desktop) run(false, true);
+    return () => clearTimeout(resetTimer.current);
+  }, [autoCheck, run, desktop]);
+
+  const installOnAndroid = async (update: UpdateInfo) => {
+    setState({ kind: 'downloading', version: update.version, percent: 0 });
+    try {
+      await installAndroidUpdate(update.downloadUrl, (percent) =>
+        setState({ kind: 'downloading', version: update.version, percent })
+      );
+      setState({ kind: 'installing', version: update.version });
+      // If the installer is dismissed, offer the update again
+      resetTimer.current = setTimeout(() => setState({ kind: 'available', update }), 8000);
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      setState({ kind: 'available', update });
+      if (code === 'PERMISSION_NEEDED') {
+        toast('Allow Mailman to install updates, then tap Update again.', { icon: '🔐', id: 'update' });
+      } else if (code === 'SIGNATURE_MISMATCH') {
+        toast.error('This update needs a one-time manual install. Opening the download…', { id: 'update' });
+        openExternal(update.downloadUrl);
+      } else {
+        toast.error((err as Error).message || 'The update could not be downloaded', { id: 'update' });
+      }
+    }
   };
 
-  const available = state.kind === 'available';
+  const onClick = () => {
+    if (builtIn && desktop) {
+      if (state.kind === 'ready') void desktop.install();
+      else if (state.kind !== 'checking' && state.kind !== 'downloading') {
+        setState({ kind: 'checking' });
+        void desktop.check();
+      }
+      return;
+    }
+    if (state.kind === 'available') {
+      if (currentPlatform() === 'android' && /\.apk$/i.test(state.update.downloadUrl)) void installOnAndroid(state.update);
+      else openExternal(state.update.downloadUrl);
+    } else if (state.kind !== 'checking' && state.kind !== 'downloading' && state.kind !== 'installing') run(true, false);
+  };
+
+  const available = state.kind === 'available' || state.kind === 'ready';
+  const busy = state.kind === 'downloading' || state.kind === 'installing';
 
   const icon = (
     <span className="relative flex h-4 w-4 items-center justify-center">
@@ -79,6 +150,7 @@ export const UpdateButton: FC<UpdateButtonProps> = ({ variant = 'card', autoChec
           {state.kind === 'latest' && <CheckMark />}
           {state.kind === 'error' && <AlertCircle className="h-4 w-4" />}
           {available && <ArrowDownToLine className="h-4 w-4 group-hover:animate-bounce" />}
+          {busy && <ArrowDownToLine className="h-4 w-4 animate-pulse" />}
         </motion.span>
       </AnimatePresence>
     </span>
@@ -89,7 +161,10 @@ export const UpdateButton: FC<UpdateButtonProps> = ({ variant = 'card', autoChec
     checking: 'Checking…',
     latest: "You're up to date",
     error: "Couldn't check right now",
-    available: available ? `Update to v${state.update.version}` : '',
+    available: state.kind === 'available' ? `Update to v${state.update.version}` : '',
+    downloading: state.kind === 'downloading' ? `Downloading v${state.version}… ${state.percent}%` : '',
+    ready: state.kind === 'ready' ? `Restart to update to v${state.version}` : '',
+    installing: 'Opening the installer…',
   }[state.kind];
 
   if (variant === 'row') {
@@ -127,6 +202,14 @@ export const UpdateButton: FC<UpdateButtonProps> = ({ variant = 'card', autoChec
         <span className="rounded-md bg-ink-200/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-500 dark:bg-white/10 dark:text-ink-400">
           v{APP_VERSION}
         </span>
+        {state.kind === 'downloading' && (
+          <motion.span
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-brand-gradient"
+            animate={{ scaleX: state.percent / 100 }}
+            transition={{ ease: 'easeOut' }}
+          />
+        )}
       </button>
     );
   }
@@ -174,11 +257,15 @@ export const UpdateButton: FC<UpdateButtonProps> = ({ variant = 'card', autoChec
             available ? 'bg-white/20 font-semibold text-white' : 'bg-ink-100 font-mono text-ink-500 dark:bg-white/10 dark:text-ink-400'
           )}
         >
-          {available ? (
+          {state.kind === 'available' ? (
             <>
               <ArrowDownToLine className="h-3 w-3" />
               {state.update.assetSize ? formatBytes(state.update.assetSize) : 'Download'}
             </>
+          ) : state.kind === 'ready' ? (
+            'Restart'
+          ) : state.kind === 'downloading' ? (
+            `${state.percent}%`
           ) : (
             `v${APP_VERSION}`
           )}

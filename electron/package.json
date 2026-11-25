@@ -30,7 +30,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -38,11 +40,15 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "deb",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Office"
@@ -51,17 +57,27 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
-    }
+      "createStartMenuShortcut": true,
+      "artifactName": "Mailman-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JohnTa15",
+        "repo": "MailMan",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
-    "electron-store": "^8.2.0"
+    "electron-store": "^8.2.0",
+    "electron-updater": "6.2.1"
   },
   "devDependencies": {
-    "electron": "28.3.3",
-    "electron-builder": "^24.9.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
+    "electron": "28.3.3",
+    "electron-builder": "^24.9.1",
     "wait-on": "^7.2.0"
   }
 }

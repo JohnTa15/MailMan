@@ -167,6 +167,30 @@ Restart the server after changing `.env` (`docker compose up -d`). Admins can
 check the setup in **Settings → Integrations**: it shows which variables are
 missing and the exact redirect URI to register.
 
+### Automatic updates
+
+- **Windows app:** checks for a new release on start and every few hours,
+  downloads it in the background, and installs it when you click *Restart to
+  update* (or the next time you quit).
+- **Android app:** *Update* downloads the new version inside the app and opens
+  Android's installer; allow "Install unknown apps" for Mailman once. Every
+  APK must be signed with the same key: set the repository secrets
+  `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` (see below).
+- **Server:** add `scripts/vm-auto-update.sh` to root's crontab; it updates and
+  rebuilds when `main` has a new release:
+  `17 3 * * * /home/<you>/MailMan/scripts/vm-auto-update.sh >> /var/log/mailman-update.log 2>&1`
+
+To create the Android signing key once (any machine with Docker):
+
+```bash
+docker run --rm -it -v "$PWD:/out" eclipse-temurin:21-jdk keytool -genkeypair \
+  -keystore /out/mailman.jks -storetype PKCS12 -alias mailman -keyalg RSA \
+  -keysize 4096 -validity 10000 -dname "CN=Mailman"
+base64 -w0 mailman.jks   # paste into the ANDROID_KEYSTORE_BASE64 secret
+```
+
+Keep `mailman.jks` and its password safe: a lost key means reinstalling the app.
+
 ### Calendars and shared mailboxes
 
 The **Calendar** view shows the events of every connected account, read-only:

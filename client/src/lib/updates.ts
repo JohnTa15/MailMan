@@ -1,3 +1,5 @@
+import { registerPlugin } from '@capacitor/core';
+
 export const APP_VERSION = __APP_VERSION__;
 
 const RELEASES_API = 'https://api.github.com/repos/JohnTa15/MailMan/releases/latest';
@@ -69,4 +71,31 @@ export function checkForUpdate(force = false): Promise<UpdateInfo | null> {
 /** Opens a link in the system browser (desktop/mobile) or a new tab (web). */
 export function openExternal(url: string) {
   window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+/** The Windows app's built-in updater, when this build has one. */
+export function desktopUpdater() {
+  return window.electronAPI?.updates;
+}
+
+interface AppUpdatePlugin {
+  install(options: { url: string }): Promise<void>;
+  addListener(event: 'progress', listener: (e: { percent: number }) => void): Promise<{ remove: () => Promise<void> }>;
+}
+
+const AppUpdate = registerPlugin<AppUpdatePlugin>('AppUpdate');
+
+/**
+ * Android: downloads the release APK inside the app and opens Android's
+ * installer for it. Rejects with code PERMISSION_NEEDED (the person must
+ * allow installs from Mailman first) or SIGNATURE_MISMATCH (needs a manual
+ * reinstall once).
+ */
+export async function installAndroidUpdate(url: string, onProgress: (percent: number) => void) {
+  const handle = await AppUpdate.addListener('progress', (e) => onProgress(e.percent));
+  try {
+    await AppUpdate.install({ url });
+  } finally {
+    await handle.remove();
+  }
 }

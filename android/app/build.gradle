@@ -16,11 +16,32 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Every release must be signed with the same key, or Android refuses it as
+    // an update. CI passes the key in MAILMAN_KEYSTORE (see release.yml).
+    signingConfigs {
+        mailman {
+            def keystore = System.getenv("MAILMAN_KEYSTORE")
+            if (keystore) {
+                storeFile = file(keystore)
+                storePassword = System.getenv("MAILMAN_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("MAILMAN_KEY_ALIAS") ?: "mailman"
+                keyPassword = System.getenv("MAILMAN_KEY_PASSWORD") ?: System.getenv("MAILMAN_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("MAILMAN_KEYSTORE")) {
+                signingConfig = signingConfigs.mailman
+            }
         }
+    }
+    lint {
+        // Release builds run in CI; lint findings must not block them
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 

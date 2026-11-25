@@ -12,4 +12,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('deep-link', (_, url) => callback(url));
   },
   platform: process.platform,
+  updates: {
+    state: () => ipcRenderer.invoke('update:state'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onState: (callback) => {
+      const listener = (_, state) => callback(state);
+      ipcRenderer.on('update:state', listener);
+      return () => ipcRenderer.removeListener('update:state', listener);
+    },
+  },
 });

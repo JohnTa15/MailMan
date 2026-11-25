@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const Store = require('./config-store');
+const { setupUpdater } = require('./updater');
 
 let mainWindow;
 const store = new Store();
@@ -116,6 +117,7 @@ const createMenu = () => {
 
 // Handle app lifecycle
 app.whenReady().then(() => {
+  setupUpdater();
   createWindow();
   createMenu();
 
