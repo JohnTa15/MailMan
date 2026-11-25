@@ -1,6 +1,6 @@
 import { FC, FormEvent, ReactNode, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, AtSign, ChevronRight, ExternalLink, KeyRound, Loader2, Server } from 'lucide-react';
+import { ArrowLeft, AtSign, ChevronRight, ExternalLink, KeyRound, Loader2, Plug, Server } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { mailboxService } from '../../services/authService';
 import { apiErrorMessage } from '../../lib/api';
@@ -15,6 +15,8 @@ import { Input } from '../ui/Input';
 import { GoogleLogo, ICloudLogo, ImapLogo, MicrosoftLogo, YahooLogo } from './ProviderLogos';
 
 type Choice = 'google' | 'microsoft' | 'yahoo' | 'icloud' | 'other';
+/** A provider whose own sign-in page this server cannot use yet */
+type Unavailable = 'google-setup' | 'microsoft-setup';
 
 interface PasswordHelp {
   title: string;
@@ -56,7 +58,7 @@ const slide = {
 export const AddMailbox: FC<{ onDone?: (mailbox: Mailbox) => void }> = ({ onDone }) => {
   const { status } = useServerStatus();
   const { refresh, loadSession } = useMail();
-  const [choice, setChoice] = useState<Choice | null>(null);
+  const [choice, setChoice] = useState<Choice | Unavailable | null>(null);
   const [waiting, setWaiting] = useState<OAuthProviderId | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -83,9 +85,10 @@ export const AddMailbox: FC<{ onDone?: (mailbox: Mailbox) => void }> = ({ onDone
     }
   };
 
+  // Google and Microsoft: their own sign-in page (email, password, 2FA), like "Sign in with Google" anywhere
   const pick = (c: Choice) => {
-    if (c === 'google' && status?.providers.google) return connectOAuth('google');
-    if (c === 'microsoft' && status?.providers.microsoft) return connectOAuth('microsoft');
+    if (c === 'google') return status?.providers.google ? connectOAuth('google') : setChoice('google-setup');
+    if (c === 'microsoft') return status?.providers.microsoft ? connectOAuth('microsoft') : setChoice('microsoft-setup');
     setChoice(c);
   };
 
@@ -107,33 +110,31 @@ export const AddMailbox: FC<{ onDone?: (mailbox: Mailbox) => void }> = ({ onDone
     );
   }
 
-  if (choice && choice !== 'microsoft') {
-    return <PasswordForm choice={choice} onBack={() => setChoice(null)} onConnected={finished} />;
+  if (choice === 'google-setup' || choice === 'microsoft-setup') {
+    return (
+      <SignInNotSetUp
+        provider={choice === 'google-setup' ? 'google' : 'microsoft'}
+        onBack={() => setChoice(null)}
+        onAppPassword={() => setChoice('google')}
+      />
+    );
   }
 
-  if (choice === 'microsoft') {
-    return (
-      <motion.div {...slide} className="space-y-4">
-        <BackButton onClick={() => setChoice(null)} />
-        <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-          Outlook and Office 365 only allow sign-in through Microsoft, and this server doesn't have Microsoft sign-in set
-          up yet. The server admin can turn it on with an Azure app registration (see the Mailman README).
-        </div>
-      </motion.div>
-    );
+  if (choice && choice !== 'microsoft') {
+    return <PasswordForm choice={choice} onBack={() => setChoice(null)} onConnected={finished} />;
   }
 
   const options: { id: Choice; title: string; subtitle: string; logo: ReactNode }[] = [
     {
       id: 'google',
       title: 'Google',
-      subtitle: status?.providers.google ? 'Gmail and Google Workspace' : 'Gmail with an app password',
+      subtitle: status?.providers.google ? 'Sign in with Google: Gmail and Workspace' : 'Gmail and Google Workspace',
       logo: <GoogleLogo className="h-6 w-6" />,
     },
     {
       id: 'microsoft',
       title: 'Microsoft',
-      subtitle: status?.providers.microsoft ? 'Outlook.com and Office 365' : 'Not set up on this server',
+      subtitle: status?.providers.microsoft ? 'Sign in with Microsoft: Outlook and Office 365' : 'Outlook.com and Office 365',
       logo: <MicrosoftLogo className="h-6 w-6" />,
     },
     { id: 'yahoo', title: 'Yahoo', subtitle: 'With an app password', logo: <YahooLogo className="h-6 w-6" /> },
@@ -154,7 +155,6 @@ export const AddMailbox: FC<{ onDone?: (mailbox: Mailbox) => void }> = ({ onDone
           whileTap={{ scale: 0.98 }}
           className={cn(
             'group flex items-center gap-4 rounded-2xl bg-white px-4 py-3.5 text-left shadow-card ring-1 ring-ink-200/70 transition-colors hover:ring-primary-300 dark:bg-ink-800/60 dark:shadow-none dark:ring-white/10 dark:hover:ring-primary-400/40',
-            o.id === 'microsoft' && !status?.providers.microsoft && 'opacity-70'
           )}
         >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-ink-50 dark:bg-white/5">{o.logo}</span>
@@ -165,6 +165,64 @@ export const AddMailbox: FC<{ onDone?: (mailbox: Mailbox) => void }> = ({ onDone
           <ChevronRight className="h-4 w-4 text-ink-400 transition-transform group-hover:translate-x-0.5" />
         </motion.button>
       ))}
+      {status?.providers.google && (
+        <button
+          type="button"
+          onClick={() => setChoice('google')}
+          className="mt-1 justify-self-center text-xs font-medium text-ink-500 hover:text-ink-800 hover:underline dark:text-ink-400 dark:hover:text-white"
+        >
+          Gmail with an app password instead
+        </button>
+      )}
+    </motion.div>
+  );
+};
+
+/**
+ * Google/Microsoft sign-in needs a one-time app registration on the server.
+ * The admin gets a shortcut to it; Gmail also works with an app password.
+ */
+const SignInNotSetUp: FC<{ provider: OAuthProviderId; onBack: () => void; onAppPassword: () => void }> = ({
+  provider,
+  onBack,
+  onAppPassword,
+}) => {
+  const isAdmin = useAppStore((s) => s.user?.role === 'admin');
+  const openSettings = useAppStore((s) => s.openSettings);
+  const name = provider === 'google' ? 'Google' : 'Microsoft';
+  const Logo = provider === 'google' ? GoogleLogo : MicrosoftLogo;
+  return (
+    <motion.div {...slide} className="space-y-4">
+      <BackButton onClick={onBack} />
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ink-50 dark:bg-white/5">
+          <Logo className="h-6 w-6" />
+        </span>
+        <h3 className="text-lg font-semibold">Sign in with {name}</h3>
+      </div>
+      <p className="text-sm text-ink-600 dark:text-ink-300">
+        You sign in on {name}'s own page with your email, password and 2-step code, and Mailman never sees your password.
+        {isAdmin
+          ? ` Before that works, this server needs a one-time ${name} app registration (about 10 minutes).`
+          : ` Your Mailman admin has to turn it on for this server first.`}
+      </p>
+      {isAdmin && (
+        <Button className="w-full" onClick={() => openSettings('integrations')}>
+          <Plug className="h-4 w-4" />
+          Set up {name} sign-in
+        </Button>
+      )}
+      {provider === 'google' ? (
+        <Button variant="secondary" className="w-full" onClick={onAppPassword}>
+          <KeyRound className="h-4 w-4" />
+          Use a Gmail app password for now
+        </Button>
+      ) : (
+        <p className="rounded-xl bg-ink-100/70 px-3.5 py-3 text-xs text-ink-600 dark:bg-white/5 dark:text-ink-300">
+          Outlook and Office 365 accept only Microsoft's sign-in: Microsoft no longer allows passwords or app passwords for
+          email apps.
+        </p>
+      )}
     </motion.div>
   );
 };
