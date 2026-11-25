@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mailman privacy policy</title>
+<link rel="icon" type="image/svg+xml" href="./favicon.svg">
+<style>
+  :root { --bg: #f8fafc; --text: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #4f46e5; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1120; --text: #f1f5f9; --muted: #94a3b8; --line: #1e293b; --accent: #a5b4fc; } }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 48px 16px 64px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  header img { width: 40px; height: 40px; }
+  h1 { font-size: 28px; line-height: 1.2; margin: 0; }
+  h2 { font-size: 18px; margin: 32px 0 8px; }
+  p, li { color: var(--muted); }
+  a { color: var(--accent); }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="./favicon.svg" alt="">
+    <h1>Mailman privacy policy</h1>
+  </header>
+
+  <p>Mailman is a self-hosted email and calendar app. This server is run privately by its owner for the people they invite. There is no
+    company behind it, no advertising and no analytics.</p>
+
+  <h2>What Mailman stores</h2>
+  <ul>
+    <li>Your Mailman account: name, email address and a hashed password.</li>
+    <li>For each mailbox you connect: its address, server settings, and the sign-in tokens or app password needed to reach it, stored encrypted.</li>
+    <li>Copies of your email messages, so you can read and search them. Calendar events are read when you open the calendar and are not stored.</li>
+  </ul>
+
+  <h2>Google and Microsoft data</h2>
+  <p>When you connect a Google or Microsoft account, Mailman asks for access to your mail (to read, organise and send it on your
+    behalf) and read-only access to your calendars (to show your events). This data is used only to show it to you in Mailman. It is not
+    sold, shared with anyone, used for advertising, or used to train AI models.</p>
+  <p>Mailman's use and transfer of information received from Google APIs adheres to the
+    <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the
+    Limited Use requirements.</p>
+
+  <h2>AI assistants</h2>
+  <p>Mailman only connects an AI assistant to your mail if you create an AI key yourself in Settings. You choose what it may do, it can
+    never send email, and you can revoke the key at any time.</p>
+
+  <h2>Removing your data</h2>
+  <p>Removing a mailbox in Settings deletes its messages and tokens from this server. You can also revoke Mailman's access at any time
+    from your <a href="https://myaccount.google.com/permissions">Google account</a> or
+    <a href="https://account.microsoft.com/privacy/app-access">Microsoft account</a>. To delete your Mailman account, ask the person who
+    runs this server.</p>
+
+  <footer>Mailman is open source.</footer>
+</main>
+</body>
+</html>
