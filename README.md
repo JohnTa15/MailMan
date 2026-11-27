@@ -132,6 +132,13 @@ of mailboxes (Gmail, Outlook/Office 365, Yahoo, iCloud or any IMAP server).
 - The **first account** created on a new server becomes the **admin**.
 - After that the server is **invite-only**: the admin creates invite links in
   **Settings → Invites**. Each link works once and expires.
+- **Forgot a password?** On the server, list the accounts and set a new random
+  password for one (it is printed once; change it in *Settings → Account*):
+
+  ```bash
+  sudo docker exec -it mailman node dist/cli/reset-password.js
+  sudo docker exec -it mailman node dist/cli/reset-password.js you@example.com
+  ```
 
 ### Google and Microsoft
 
