@@ -315,6 +315,17 @@ export const LoginScreen: FC = () => {
                         </button>
                       }
                     />
+                    {mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          toast('Contact your server admin to reset your password using the CLI tool.', { duration: 6000 });
+                        }}
+                        className="mt-2 text-xs font-medium text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </Field>
 
                   <AnimatePresence>
